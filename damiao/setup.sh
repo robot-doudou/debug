@@ -12,15 +12,21 @@ UDEV_RULE=/etc/udev/rules.d/99-canable.rules
 SERVICE=/etc/systemd/system/can0-up.service
 
 # --- udev 规则 ---
-if [[ -f "$UDEV_RULE" ]]; then
-    echo "[skip] $UDEV_RULE 已存在"
+# 已存在且包含 DFU 条目则跳过; 缺失 DFU 条目 (老版本) 强制覆盖更新
+if [[ -f "$UDEV_RULE" ]] && grep -q "0483" "$UDEV_RULE"; then
+    echo "[skip] $UDEV_RULE 已是最新版本"
 else
+    if [[ -f "$UDEV_RULE" ]]; then
+        echo "[更新] $UDEV_RULE 缺 DFU 条目, 覆盖旧版"
+    fi
     cat > "$UDEV_RULE" <<'EOF'
 # Makerbase CANable 2.0 (normaldotcom fork)
 # slcan 固件
 SUBSYSTEM=="usb", ATTR{idVendor}=="16d0", ATTR{idProduct}=="117e", MODE="0666"
 # candleLight 固件 (gs_usb)
 SUBSYSTEM=="usb", ATTR{idVendor}=="1d50", ATTR{idProduct}=="606f", MODE="0666"
+# STM32 DFU 模式 (烧固件时设备 VID:PID 会临时变成这个)
+SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="df11", MODE="0666"
 EOF
     echo "[ok]   写入 $UDEV_RULE"
 fi

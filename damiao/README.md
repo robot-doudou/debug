@@ -284,6 +284,8 @@ uv run main.py -b 127.0.0.1     # 仅本机访问
 | MIT 点控不动 | `tau_limit` 比克服负载所需扭矩小，用 `--unsafe --tau 2` 试 |
 | `--live` 无窗口 | SSH 无 X11 转发，自动降级走 PNG；本地运行时检查 `DISPLAY` 环境变量 |
 | 改完 ID 失联 | 拔电重上，用新 ID 重连；忘记旧 ID 时只能逐个 scan |
+| `dfu-util: Cannot open DFU device ... LIBUSB_ERROR_ACCESS` | DFU 模式 (`0483:df11`) 权限不够。老版本 `setup.sh` 未包含此规则，跑 `sudo bash setup.sh` 覆盖更新即可；临时过关可 `sudo uv run fw_update.py <bin>` |
+| `dfu-util: Warning: Invalid DFU suffix signature` | 无害。pre-built bin 没附 DFU 后缀签名，脚本用 `-s 0x08000000:leave` 绕过，不影响烧录 |
 
 ---
 

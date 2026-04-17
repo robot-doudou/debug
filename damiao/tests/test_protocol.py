@@ -98,3 +98,22 @@ def test_parse_mit_feedback_err_code_extracted():
 def test_parse_mit_feedback_wrong_length():
     with pytest.raises(ValueError):
         parse_mit_feedback(bytes(7), p_max=12.5, v_max=30.0, t_max=7.0)
+
+
+from device import CMD_ENABLE, CMD_DISABLE, CMD_SET_ZERO, CMD_CLEAR_ERROR
+
+
+def test_cmd_enable_bytes():
+    assert CMD_ENABLE == bytes([0xFF]*7 + [0xFC])
+
+
+def test_cmd_disable_bytes():
+    assert CMD_DISABLE == bytes([0xFF]*7 + [0xFD])
+
+
+def test_cmd_set_zero_bytes():
+    assert CMD_SET_ZERO == bytes([0xFF]*7 + [0xFE])
+
+
+def test_cmd_clear_error_bytes():
+    assert CMD_CLEAR_ERROR == bytes([0xFF]*7 + [0xFB])

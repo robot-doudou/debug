@@ -163,3 +163,11 @@ def parse_mit_feedback(data: bytes, p_max: float, v_max: float, t_max: float) ->
         t_mos=t_mos,
         t_rotor=t_rotor,
     )
+
+
+# --- MIT 特殊控制命令 (CAN ID = motor_id, DLC = 8) ---
+
+CMD_ENABLE      = bytes([0xFF]*7 + [0xFC])
+CMD_DISABLE     = bytes([0xFF]*7 + [0xFD])
+CMD_SET_ZERO    = bytes([0xFF]*7 + [0xFE])
+CMD_CLEAR_ERROR = bytes([0xFF]*7 + [0xFB])

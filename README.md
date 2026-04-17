@@ -7,6 +7,7 @@
 ```
 respeaker/       # ReSpeaker XVF3800 4-Mic Array 调试
 realsense/       # Intel RealSense D435i 深度相机调试
+damiao/          # 达妙电机 DM4310-P / DM4340 调试 (CAN via CANable 2.0)
 ```
 
 ## 开发约定
@@ -33,3 +34,4 @@ uv run detect.py
 |------|------|------|
 | ReSpeaker XVF3800 4-Mic Array | `respeaker/` | 基础调试完成 (录音/播放/VAD/AEC/降噪/DOA) |
 | Intel RealSense D435i | `realsense/` | 基础调试 (检测/单帧抓取/实时流/IMU/对齐/点云) |
+| 达妙电机 DM4310-P / DM4340 | `damiao/` | 基础调试 (使能/MIT/Servo/参数/录波, 多电机+固件升级规划中) |

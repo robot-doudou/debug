@@ -140,12 +140,11 @@ ip -details link show can0
 
 打开 https://canable.io/updater/canable2.html ，选 **candlelight**，点按钮。浏览器通过 WebUSB 直接烧录，免 `dfu-util` 也免 BOOT 跳线。仅 Chrome / Edge 支持 WebUSB。
 
-### 方式 B：直链下载 + 本仓库脚本
+### 方式 B：本仓库自带 bin + 烧录脚本
+
+仓库里已放好 `canable2_fw-ba6b1dd.bin`（16752 字节，commit `ba6b1dd`，2021-07，canable.io 官方 flasher 用的同一份）。
 
 ```bash
-# 下载官方 pre-built bin (canable.io 官方 flasher 也用这个)
-wget https://canable.io/builds/canable2/candlelight/canable2_fw-ba6b1dd.bin
-
 # 系统前置依赖
 sudo apt install dfu-util
 
@@ -155,6 +154,8 @@ uv run fw_update.py --info
 # 烧录 (脚本会提示 BOOT 跳线操作, 等 DFU, 调 dfu-util)
 uv run fw_update.py canable2_fw-ba6b1dd.bin
 ```
+
+想取最新版自行下载：`wget https://canable.io/builds/canable2/candlelight/canable2_fw-ba6b1dd.bin`。
 
 **方式 B 操作流程：**
 

@@ -3,4 +3,3 @@ out/
 __pycache__/
 .pytest_cache/
 *.swp
-*.bin

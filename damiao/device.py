@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import pathlib
+import struct as _struct
 import sys
 from dataclasses import dataclass
 from datetime import datetime
@@ -171,3 +172,37 @@ CMD_ENABLE      = bytes([0xFF]*7 + [0xFC])
 CMD_DISABLE     = bytes([0xFF]*7 + [0xFD])
 CMD_SET_ZERO    = bytes([0xFF]*7 + [0xFE])
 CMD_CLEAR_ERROR = bytes([0xFF]*7 + [0xFB])
+
+
+# --- Servo 模式 (POS_VEL / SPEED) ---
+
+def servo_pos_frame(motor_id: int, pos: float, vel: float) -> tuple[int, bytes]:
+    """Servo 位置+前馈速度模式帧。CAN ID = 0x100 + motor_id, DLC = 8。"""
+    return 0x100 + motor_id, _struct.pack("<ff", pos, vel)
+
+
+def servo_speed_frame(motor_id: int, vel: float) -> tuple[int, bytes]:
+    """Servo 速度模式帧。CAN ID = 0x200 + motor_id, DLC = 4。"""
+    return 0x200 + motor_id, _struct.pack("<f", vel)
+
+
+# --- 参数寄存器读写 (CAN ID = 0x7FF) ---
+
+PARAM_READ  = 0x33
+PARAM_WRITE = 0x55
+PARAM_SAVE  = 0xAA
+
+
+def param_read_frame(motor_id: int, reg_id: int) -> tuple[int, bytes]:
+    data = bytes([motor_id & 0xFF, (motor_id >> 8) & 0xFF, PARAM_READ, reg_id, 0, 0, 0, 0])
+    return 0x7FF, data
+
+
+def param_write_frame(motor_id: int, reg_id: int, value: float) -> tuple[int, bytes]:
+    data = bytes([motor_id & 0xFF, (motor_id >> 8) & 0xFF, PARAM_WRITE, reg_id]) + _struct.pack("<f", value)
+    return 0x7FF, data
+
+
+def param_save_frame(motor_id: int) -> tuple[int, bytes]:
+    data = bytes([motor_id & 0xFF, (motor_id >> 8) & 0xFF, PARAM_SAVE, 0, 0, 0, 0, 0])
+    return 0x7FF, data

@@ -117,3 +117,47 @@ def test_cmd_set_zero_bytes():
 
 def test_cmd_clear_error_bytes():
     assert CMD_CLEAR_ERROR == bytes([0xFF]*7 + [0xFB])
+
+
+import struct
+from device import (
+    servo_pos_frame, servo_speed_frame,
+    param_read_frame, param_write_frame, param_save_frame,
+)
+
+
+def test_servo_pos_frame():
+    can_id, data = servo_pos_frame(motor_id=0x01, pos=1.5, vel=2.0)
+    assert can_id == 0x101
+    expected = struct.pack("<ff", 1.5, 2.0)
+    assert data == expected
+
+
+def test_servo_speed_frame():
+    can_id, data = servo_speed_frame(motor_id=0x02, vel=3.14)
+    assert can_id == 0x202
+    assert data == struct.pack("<f", 3.14)
+
+
+def test_param_read_frame():
+    can_id, data = param_read_frame(motor_id=0x01, reg_id=0x07)  # 0x07 = PMAX
+    assert can_id == 0x7FF
+    assert data[0] == 0x01  # motor_id lo
+    assert data[1] == 0x00  # motor_id hi
+    assert data[2] == 0x33  # 读
+    assert data[3] == 0x07
+    assert data[4:8] == bytes(4)
+
+
+def test_param_write_frame_float():
+    can_id, data = param_write_frame(motor_id=0x01, reg_id=0x07, value=12.5)
+    assert can_id == 0x7FF
+    assert data[2] == 0x55  # 写
+    assert data[3] == 0x07
+    assert data[4:8] == struct.pack("<f", 12.5)
+
+
+def test_param_save_frame():
+    can_id, data = param_save_frame(motor_id=0x01)
+    assert can_id == 0x7FF
+    assert data[2] == 0xAA  # 保存

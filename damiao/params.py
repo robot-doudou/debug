@@ -86,43 +86,43 @@ def main():
 
     bus = open_bus(channel="can0", bitrate=1_000_000)
     try:
-        motor = DMMotor(bus, motor_id=args.motor_id, master_id=args.master_id,
-                        auto_enable=False)
-        if args.get is not None:
-            val = motor.read_param(args.get, timeout=0.3)
-            if val is None:
-                print(f"[fail] 读 0x{args.get:02X} 超时"); sys.exit(1)
-            name = REG_TABLE.get(args.get, (f"REG_{args.get:02X}",))[0]
-            print(f"  {name} (0x{args.get:02X}) = {fmt_value(args.get, val)}")
+        with DMMotor(bus, motor_id=args.motor_id, master_id=args.master_id,
+                     auto_enable=False, ping_on_enter=False) as motor:
+            if args.get is not None:
+                val = motor.read_param(args.get, timeout=0.3)
+                if val is None:
+                    print(f"[fail] 读 0x{args.get:02X} 超时"); sys.exit(1)
+                name = REG_TABLE.get(args.get, (f"REG_{args.get:02X}",))[0]
+                print(f"  {name} (0x{args.get:02X}) = {fmt_value(args.get, val)}")
 
-        elif args.set is not None:
-            reg = parse_reg(args.set[0])
-            val = float(args.set[1])
-            motor.write_param(reg, val)
-            print(f"  写 0x{reg:02X} = {val} (未保存到 Flash, 跑 --save 固化)")
+            elif args.set is not None:
+                reg = parse_reg(args.set[0])
+                val = float(args.set[1])
+                motor.write_param(reg, val)
+                print(f"  写 0x{reg:02X} = {val} (未保存到 Flash, 跑 --save 固化)")
 
-        elif args.set_zero:
-            motor.set_zero()
-            print("  [ok] 当前位置已置零 (未固化, --save 保存)")
+            elif args.set_zero:
+                motor.set_zero()
+                print("  [ok] 当前位置已置零 (未固化, --save 保存)")
 
-        elif args.clear_error:
-            motor.clear_error()
-            print("  [ok] 清错指令已发送")
+            elif args.clear_error:
+                motor.clear_error()
+                print("  [ok] 清错指令已发送")
 
-        elif args.save:
-            motor.save_to_flash()
-            print("  [ok] 保存到 Flash 指令已发送")
+            elif args.save:
+                motor.save_to_flash()
+                print("  [ok] 保存到 Flash 指令已发送")
 
-        elif args.change_id is not None:
-            new_can, new_mst = args.change_id
-            print(f"  写 CAN_ID = 0x{new_can:02X}")
-            motor.write_param(0x10, float(new_can))
-            print(f"  写 MST_ID = 0x{new_mst:02X}")
-            motor.write_param(0x11, float(new_mst))
-            print("  保存到 Flash")
-            motor.save_to_flash()
-            print(f"  [ok] 请拔电重上, 新参数: --motor-id 0x{new_can:02X} "
-                  f"--master-id 0x{new_mst:02X}")
+            elif args.change_id is not None:
+                new_can, new_mst = args.change_id
+                print(f"  写 CAN_ID = 0x{new_can:02X}")
+                motor.write_param(0x10, float(new_can))
+                print(f"  写 MST_ID = 0x{new_mst:02X}")
+                motor.write_param(0x11, float(new_mst))
+                print("  保存到 Flash")
+                motor.save_to_flash()
+                print(f"  [ok] 请拔电重上, 新参数: --motor-id 0x{new_can:02X} "
+                      f"--master-id 0x{new_mst:02X}")
 
     finally:
         bus.shutdown()

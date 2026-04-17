@@ -14,19 +14,12 @@ import wave
 
 import pyaudio
 
+import device
+
 RATE = 16000
 CHANNELS = 2
 FORMAT = pyaudio.paInt16
 CHUNK = 1600  # 100ms
-DEVICE_KEYWORD = "XVF3800"
-
-
-def find_device(pa: pyaudio.PyAudio) -> int | None:
-    for i in range(pa.get_device_count()):
-        info = pa.get_device_info_by_index(i)
-        if DEVICE_KEYWORD in info["name"] and info["maxInputChannels"] > 0:
-            return i
-    return None
 
 
 def record_segment(pa: pyaudio.PyAudio, idx: int, duration: int, label: str) -> list[bytes]:
@@ -78,9 +71,9 @@ def save_wav(frames: list[bytes], filename: str, pa: pyaudio.PyAudio):
 def run_test(duration: int):
     pa = pyaudio.PyAudio()
     try:
-        idx = find_device(pa)
+        pa, idx = device.find_input(pa)
         if idx is None:
-            print(f"错误: 未找到 {DEVICE_KEYWORD} 设备")
+            print("错误: 未找到 XVF3800 输入设备")
             return
 
         info = pa.get_device_info_by_index(idx)

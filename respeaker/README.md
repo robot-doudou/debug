@@ -112,7 +112,18 @@ wLength:   数据字节数 + 1 (状态字节)
 
 ## Linux 权限配置
 
-DOA 等 USB 控制功能需要访问 USB 设备，普通用户默认没有权限。添加 udev 规则：
+### 音频设备权限
+
+远程 (SSH) 环境下普通用户没有音频设备访问权限，需要加入 `audio` 组：
+
+```bash
+sudo usermod -aG audio $USER
+# 重新登录生效 (SSH 重连即可)
+```
+
+### USB 控制权限
+
+DOA 等 USB 控制功能需要访问 USB 设备，添加 udev 规则：
 
 ```bash
 echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="2886", ATTR{idProduct}=="001a", MODE="0666"' | sudo tee /etc/udev/rules.d/99-respeaker.rules

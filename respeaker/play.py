@@ -16,32 +16,12 @@ import wave
 
 import pyaudio
 
+import device
+
 RATE = 16000
 CHANNELS = 2
 FORMAT = pyaudio.paInt16
 CHUNK = 1024
-DEVICE_KEYWORD = "XVF3800"
-
-
-def find_output_device(pa: pyaudio.PyAudio) -> int | None:
-    for i in range(pa.get_device_count()):
-        info = pa.get_device_info_by_index(i)
-        if DEVICE_KEYWORD in info["name"] and info["maxOutputChannels"] > 0:
-            return i
-    return None
-
-
-def list_devices(pa: pyaudio.PyAudio):
-    print("可用输出设备:")
-    for i in range(pa.get_device_count()):
-        info = pa.get_device_info_by_index(i)
-        if info["maxOutputChannels"] > 0:
-            marker = " <-- XVF3800" if DEVICE_KEYWORD in info["name"] else ""
-            print(
-                f"  [{i}] {info['name']} "
-                f"(channels={info['maxOutputChannels']}, "
-                f"rate={int(info['defaultSampleRate'])}){marker}"
-            )
 
 
 def generate_tone(freq: float, duration: int, volume: float) -> bytes:
@@ -71,10 +51,10 @@ def play_wav(filepath: str, volume: float = 1.0):
     """播放 WAV 文件。"""
     pa = pyaudio.PyAudio()
     try:
-        idx = find_output_device(pa)
+        pa, idx = device.find_output(pa)
         if idx is None:
-            print(f"错误: 未找到包含 '{DEVICE_KEYWORD}' 的输出设备")
-            list_devices(pa)
+            print("错误: 未找到 XVF3800 输出设备")
+            device.list_outputs(pa)
             return
 
         with wave.open(filepath, "rb") as wf:
@@ -114,10 +94,10 @@ def play_tone(freq: float, duration: int, volume: float):
     """播放生成的测试音。"""
     pa = pyaudio.PyAudio()
     try:
-        idx = find_output_device(pa)
+        pa, idx = device.find_output(pa)
         if idx is None:
-            print(f"错误: 未找到包含 '{DEVICE_KEYWORD}' 的输出设备")
-            list_devices(pa)
+            print("错误: 未找到 XVF3800 输出设备")
+            device.list_outputs(pa)
             return
 
         info = pa.get_device_info_by_index(idx)
@@ -149,13 +129,13 @@ if __name__ == "__main__":
     parser.add_argument("file", nargs="?", help="WAV 文件路径 (不指定则播放测试音)")
     parser.add_argument("--freq", type=float, default=1000, help="频率 Hz (默认 1000)")
     parser.add_argument("--duration", type=int, default=3, help="时长秒 (默认 3)")
-    parser.add_argument("--volume", type=float, default=0.8, help="音量 0.0-1.0 (默认 0.8)")
+    parser.add_argument("--volume", type=float, default=0.8, help="音量倍数 (默认 0.8, >1.0 为放大带削波)")
     parser.add_argument("--list", action="store_true", help="列出所有输出设备")
     args = parser.parse_args()
 
     if args.list:
         pa = pyaudio.PyAudio()
-        list_devices(pa)
+        device.list_outputs(pa)
         pa.terminate()
     elif args.file:
         play_wav(args.file, args.volume)

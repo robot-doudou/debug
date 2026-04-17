@@ -15,23 +15,12 @@ import wave
 
 import pyaudio
 
+import device
+
 RATE = 16000
 CHANNELS = 2
 FORMAT = pyaudio.paInt16
 CHUNK = 1024
-DEVICE_KEYWORD = "XVF3800"
-
-
-def find_device(pa: pyaudio.PyAudio, direction: str) -> int | None:
-    for i in range(pa.get_device_count()):
-        info = pa.get_device_info_by_index(i)
-        if DEVICE_KEYWORD not in info["name"]:
-            continue
-        if direction == "input" and info["maxInputChannels"] > 0:
-            return i
-        if direction == "output" and info["maxOutputChannels"] > 0:
-            return i
-    return None
 
 
 def generate_tone(freq: float, duration: int, volume: float = 0.8) -> bytes:
@@ -85,11 +74,10 @@ def analyze(filename: str, freq: float):
 def run_aec_test(freq: float, duration: int):
     pa = pyaudio.PyAudio()
 
-    out_idx = find_device(pa, "output")
-    in_idx = find_device(pa, "input")
+    pa, in_idx, out_idx = device.find_both(pa)
 
-    if out_idx is None or in_idx is None:
-        print(f"错误: 未找到 {DEVICE_KEYWORD} 的输入/输出设备")
+    if in_idx is None or out_idx is None:
+        print("错误: 未找到 XVF3800 的输入/输出设备")
         pa.terminate()
         return
 

@@ -206,3 +206,164 @@ def param_write_frame(motor_id: int, reg_id: int, value: float) -> tuple[int, by
 def param_save_frame(motor_id: int) -> tuple[int, bytes]:
     data = bytes([motor_id & 0xFF, (motor_id >> 8) & 0xFF, PARAM_SAVE, 0, 0, 0, 0, 0])
     return 0x7FF, data
+
+
+# --- 总线打开 (socketcan 优先, slcan 降级) ---
+
+def open_bus(channel: str = "can0",
+             bitrate: int = 1_000_000,
+             slcan_fallback: str | None = "/dev/ttyACM0"):
+    """优先尝试 SocketCAN (candleLight 固件), 失败且 slcan_fallback 非 None 时
+    回退到 slcan (normaldotcom slcan 固件)。
+
+    返回 can.BusABC 实例, 调用方负责 shutdown()。
+    """
+    import can
+
+    try:
+        return can.Bus(interface="socketcan", channel=channel, bitrate=bitrate)
+    except (OSError, can.CanInitializationError) as e:
+        if slcan_fallback is None:
+            raise
+        print(f"[info] SocketCAN 打开失败 ({e}), 尝试 slcan {slcan_fallback}...",
+              file=sys.stderr)
+        return can.Bus(interface="slcan", channel=slcan_fallback, bitrate=bitrate)
+
+
+# --- DMMotor 类 ---
+
+class DMMotor:
+    """达妙电机 DM v4 上下文管理器。
+
+    进入: (ping_on_enter) 发一次 enable 并等待反馈确认 → auto_enable 则持续
+    退出: 无条件发 disable (最多重试一次, 即使 bus 异常也尽力而为)
+    """
+
+    def __init__(self, bus, motor_id: int = 0x01, master_id: int = 0x11,
+                 p_max: float = 12.5, v_max: float = 30.0, t_max: float = 7.0,
+                 safety: SafetyLimits = SAFE_DEFAULTS,
+                 auto_enable: bool = True,
+                 ping_on_enter: bool = True):
+        self.bus = bus
+        self.motor_id = motor_id
+        self.master_id = master_id
+        self.p_max = p_max
+        self.v_max = v_max
+        self.t_max = t_max
+        self.safety = safety
+        self.auto_enable = auto_enable
+        self.ping_on_enter = ping_on_enter
+
+    # --- 原始帧发送 ---
+
+    def _send(self, can_id: int, data: bytes, is_extended: bool = False):
+        import can
+        msg = can.Message(arbitration_id=can_id, data=data,
+                          is_extended_id=is_extended)
+        self.bus.send(msg)
+
+    # --- 控制命令 ---
+
+    def enable(self):       self._send(self.motor_id, CMD_ENABLE)
+    def disable(self):      self._send(self.motor_id, CMD_DISABLE)
+    def set_zero(self):     self._send(self.motor_id, CMD_SET_ZERO)
+    def clear_error(self):  self._send(self.motor_id, CMD_CLEAR_ERROR)
+
+    def mit_cmd(self, pos: float, vel: float, kp: float, kd: float, tau: float):
+        pos = self.safety.clamp_pos(pos)
+        vel = self.safety.clamp_vel(vel)
+        kp  = self.safety.clamp_kp(kp)
+        kd  = self.safety.clamp_kd(kd)
+        tau = self.safety.clamp_tau(tau)
+        data = pack_mit_cmd(pos, vel, kp, kd, tau,
+                            self.p_max, self.v_max, self.t_max)
+        self._send(self.motor_id, data)
+
+    def servo_pos(self, pos: float, vel: float):
+        pos = self.safety.clamp_pos(pos)
+        vel = self.safety.clamp_vel(vel)
+        can_id, data = servo_pos_frame(self.motor_id, pos, vel)
+        self._send(can_id, data)
+
+    def servo_speed(self, vel: float):
+        vel = self.safety.clamp_vel(vel)
+        can_id, data = servo_speed_frame(self.motor_id, vel)
+        self._send(can_id, data)
+
+    # --- 反馈读取 ---
+
+    def read_state(self, timeout: float = 0.05):
+        """收一帧反馈 (CAN ID = master_id), 超时返回 None。"""
+        msg = self.bus.recv(timeout=timeout)
+        if msg is None:
+            return None
+        if msg.arbitration_id == self.master_id and len(msg.data) == 8:
+            return parse_mit_feedback(msg.data, self.p_max, self.v_max, self.t_max)
+        return None
+
+    # --- 参数读写 ---
+
+    def read_param(self, reg_id: int, timeout: float = 0.2):
+        can_id, data = param_read_frame(self.motor_id, reg_id)
+        self._send(can_id, data)
+        import time
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            msg = self.bus.recv(timeout=remaining)
+            if msg is None:
+                return None
+            if msg.arbitration_id == 0x7FF and len(msg.data) == 8 \
+               and msg.data[2] == PARAM_READ and msg.data[3] == reg_id:
+                return _struct.unpack("<f", msg.data[4:8])[0]
+        return None
+
+    def write_param(self, reg_id: int, value: float):
+        can_id, data = param_write_frame(self.motor_id, reg_id, value)
+        self._send(can_id, data)
+
+    def save_to_flash(self):
+        can_id, data = param_save_frame(self.motor_id)
+        self._send(can_id, data)
+
+    # --- 上下文管理 ---
+
+    def __enter__(self):
+        try:
+            self.clear_error()
+            if self.ping_on_enter:
+                state = self.read_state(timeout=0.2)
+                if state is None:
+                    raise RuntimeError(
+                        f"电机 0x{self.motor_id:02X} 无反馈 (master_id=0x{self.master_id:02X}); "
+                        "检查 CAN 接线 / bitrate / motor_id / master_id"
+                    )
+            if self.auto_enable:
+                self.enable()
+        except Exception:
+            self._safe_disable()
+            raise
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._safe_disable()
+        return False
+
+    def _safe_disable(self):
+        last_err = None
+        for _ in range(2):  # 最多重试一次
+            try:
+                self.disable()
+                return
+            except Exception as e:
+                last_err = e
+                continue
+        # 两次都失败: 向 stderr 打印警告, 电机可能仍处于使能状态
+        print(
+            f"[严重] 电机 0x{self.motor_id:02X} disable 两次都失败 ({last_err}); "
+            f"电机可能仍然使能, 立即拔掉电池 XT60 确认断电!",
+            file=sys.stderr,
+            flush=True,
+        )

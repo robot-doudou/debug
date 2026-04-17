@@ -134,17 +134,29 @@ ip -details link show can0
 
 ## 固件烧录
 
-用 `fw_update.py` 将 CANable 2.0 从 slcan 固件升级到 candleLight（gs_usb / SocketCAN）。
+将 CANable 2.0 从 slcan 固件升级到 candleLight（gs_usb / SocketCAN）。三条路按简易程度排：
+
+### 方式 A：浏览器一键烧（最简单，推荐）
+
+打开 https://canable.io/updater/canable2.html ，选 **candlelight**，点按钮。浏览器通过 WebUSB 直接烧录，免 `dfu-util` 也免 BOOT 跳线。仅 Chrome / Edge 支持 WebUSB。
+
+### 方式 B：直链下载 + 本仓库脚本
 
 ```bash
-# 查当前固件信息
+# 下载官方 pre-built bin (canable.io 官方 flasher 也用这个)
+wget https://canable.io/builds/canable2/candlelight/canable2_fw-ba6b1dd.bin
+
+# 系统前置依赖
+sudo apt install dfu-util
+
+# 查当前固件信息 (应显示 slcan 16d0:117e)
 uv run fw_update.py --info
 
-# 烧录 candleLight 固件
-uv run fw_update.py <path_to_candleLight_fw.bin>
+# 烧录 (脚本会提示 BOOT 跳线操作, 等 DFU, 调 dfu-util)
+uv run fw_update.py canable2_fw-ba6b1dd.bin
 ```
 
-**操作流程：**
+**方式 B 操作流程：**
 
 1. 拔 USB
 2. 短接 BOOT 跳线（或按住 BOOT 按键）
@@ -152,18 +164,21 @@ uv run fw_update.py <path_to_candleLight_fw.bin>
 4. 脚本自动轮询等待 DFU 设备，调用 `dfu-util` 烧录
 5. 等设备重新枚举成 `1d50:606f`（约 10s），提示 `ip link show can0`
 
-**`.bin` 文件不进仓库，请自行下载或编译：**
-
-- 官方 `candle-usb/candleLight_fw`：`make CANABLE2=1`  
-  → https://github.com/candle-usb/candleLight_fw
-- `normaldotcom/candleLight_fw` Releases  
-  → https://github.com/normaldotcom/canable2
-
-**系统前置依赖：**
+### 方式 C：从源码编译
 
 ```bash
-sudo apt install dfu-util
+git clone https://github.com/normaldotcom/candleLight_fw.git
+cd candleLight_fw && git checkout canable
+mkdir build && cd build
+cmake .. -DCMAKE_TOOLCHAIN_FILE=../cmake/arm-none-eabi-gcc.cmake
+make
 ```
+
+### 注意事项
+
+- 方式 A/B 的 pre-built bin 是 2021 年的 commit `ba6b1dd`，**3 年未更新**，但它就是 canable.io 官方 flasher 用的版本，无数设备已验证
+- 上游 `candle-usb/candleLight_fw` 仓库**不支持** STM32G431，G431 的 candleLight 代码在 `normaldotcom/candleLight_fw` 的 `canable` 分支
+- 烧完 `lsusb` 应看到 `1d50:606f` 代替 `16d0:117e`
 
 ---
 
@@ -276,6 +291,8 @@ uv run main.py -b 127.0.0.1     # 仅本机访问
 
 - 达妙官网 / 手册: https://www.damiaoyeah.com/
 - python-can 文档: https://python-can.readthedocs.io/
-- CANable 2.0 (normaldotcom fork): https://github.com/normaldotcom/canable2
-- candleLight_fw: https://github.com/candle-usb/candleLight_fw
+- CANable 2.0 (normaldotcom slcan fork): https://github.com/normaldotcom/canable2
+- candleLight_fw (normaldotcom G431 fork): https://github.com/normaldotcom/candleLight_fw
+- candleLight_fw 上游 (不支持 G431): https://github.com/candle-usb/candleLight_fw
+- CANable 官方 web flasher: https://canable.io/updater/canable2.html
 - DM 电机 v4 协议 MIT/Servo 细节可查官方 SDK（正点原子 / GitHub 上多处开源实现）

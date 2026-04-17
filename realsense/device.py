@@ -8,6 +8,7 @@ import os
 import pathlib
 import platform
 import sys
+import time
 from datetime import datetime
 
 INTEL_VID = 0x8086
@@ -87,8 +88,14 @@ def clean_exit(code: int = 0):
     sys.exit(code)
 
 
-def require_device(required_pid: int | None = D435I_PID):
-    """查找设备，未找到则打印友好错误并退出。"""
+def require_device(required_pid: int | None = D435I_PID, reset: bool = True):
+    """查找设备，未找到则打印友好错误并退出。
+
+    reset=True (默认): 先 hardware_reset 并等待重新枚举，再返回。
+    D435i 固件 5.12.6 在 Linux kernel 6.x 上不复位直接 pipeline.start
+    会卡在 wait_for_frames 直到 5s 超时 (流已配置但固件不吐帧)，
+    详见 README "故障排查"。纯枚举类调用 (不跟 pipeline.start) 可传 reset=False。
+    """
     try:
         dev, info = find_device(required_pid)
     except Exception as e:
@@ -100,4 +107,22 @@ def require_device(required_pid: int | None = D435I_PID):
         if sys.platform == "linux":
             print("  Linux 用户需确保已配置 99-realsense-libusb.rules 或以 sudo 运行。", file=sys.stderr)
         sys.exit(1)
+
+    if reset:
+        print(f"[复位] hardware_reset {info['name']} (约 3s)...", flush=True)
+        try:
+            dev.hardware_reset()
+        except Exception as e:
+            print(f"[警告] hardware_reset 调用失败，继续: {e}", file=sys.stderr)
+        del dev  # 复位后旧句柄已失效
+        time.sleep(3.0)
+        try:
+            dev, info = find_device(required_pid)
+        except Exception as e:
+            print(f"[错误] 复位后重新枚举失败: {e}", file=sys.stderr)
+            sys.exit(1)
+        if dev is None:
+            print("[错误] 复位后设备未在 3s 内重新出现，尝试手动拔插。", file=sys.stderr)
+            sys.exit(1)
+
     return dev, info

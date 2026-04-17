@@ -43,7 +43,7 @@
 
 ```bash
 # 使用官方仓库规则（推荐）
-wget https://raw.githubusercontent.com/IntelRealSense/librealsense/master/config/99-realsense-libusb.rules
+wget https://raw.githubusercontent.com/realsenseai/librealsense/master/config/99-realsense-libusb.rules
 sudo cp 99-realsense-libusb.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules
 sudo udevadm trigger
@@ -62,6 +62,29 @@ USB 2.0 下很多高帧率/高分辨率组合会失败。
 #### 图形会话
 
 `stream.py` / `pointcloud.py --view` 需要 `DISPLAY` 或 `WAYLAND_DISPLAY`。SSH 无 X11 转发时会自动切到 headless（保存样本帧）。
+
+#### 固件复位绕过 (TODO: 升级固件)
+
+当前测试设备固件 **5.12.6**（偏旧）。在 Linux kernel 6.x 上，不预先复位直接 `pipeline.start()` + `wait_for_frames()` 会稳定超时 `Frame didn't arrive within 5000`——V4L2 节点和 D4XX 元数据都配置成功，但固件就是不吐帧。
+
+**绕过方式**：`device.py::require_device()` 默认 `reset=True`，每次启动先发 `hardware_reset()` 并等 3s 重新枚举。代价是每个脚本多花约 3s 启动时间。
+
+**根治（待做）**：升级 D435i 固件到 5.17.x（最新稳定版），理论上可去掉此复位绕过。用仓库里的 `fw_update.py`——基于 pyrealsense2 自带 API（`check_firmware_compatibility` / `enter_update_state` / `update_device.update`），不依赖 `rs-fw-update` 或 `librealsense2-utils` apt 包（Ubuntu 24.04 noble 上 Intel 源也没对应包）。
+
+```bash
+# 下载固件 (D435i 推荐 5.17.0.10):
+#   https://dev.realsenseai.com/docs/firmware-releases-d400/
+#   选 Signed_Image_UVC_5_17_0_10.bin
+
+uv run fw_update.py                                        # 只列出当前设备 / 固件
+uv run fw_update.py --backup Signed_Image_UVC_5_17_0_10.bin   # 升级前先备份
+uv run fw_update.py -s 902512070700 Signed_Image_UVC_5_17_0_10.bin
+uv run fw_update.py -y Signed_Image_UVC_5_17_0_10.bin      # 跳过确认 (自动化)
+```
+
+流程自动走 DFU：`check_firmware_compatibility` → 可选备份 → `enter_update_state` → 等 recovery 模式出现 → `update_device.update` → 等回普通模式 → 打印新版本。升级若从普通模式中断，下次可直接对 recovery 模式设备续写。
+
+升级后把 `require_device(reset=False)` 再测一遍，确认流能直接起来后可考虑把 `device.py::require_device` 默认值改回 `False`。
 
 ## 使用
 
@@ -161,12 +184,13 @@ uv run python -m http.server 8001
 | `No device connected` | 检查 `lsusb` / `ioreg`；Linux 上缺 udev 规则 |
 | `Couldn't resolve requests` | 分辨率/帧率组合不支持，先跑 `detect.py` 查可用配置 |
 | 深度全为 0 | 场景反光过强/距离 <0.2m；或 USB 2.0 带宽不足 |
+| `Frame didn't arrive within 5000` | 固件太旧 + 新 kernel 组合问题。`require_device(reset=True)` 已默认绕过，详见 "固件复位绕过" 章节 |
 | IMU 采集失败 | D435 无 IMU；确认型号为 D435i |
 | color/depth 尺寸不同 | align.py 对齐前尺寸本就不同，这是预期 |
 
 ## 参考
 
-- librealsense: https://github.com/IntelRealSense/librealsense
-- Python 绑定文档: https://dev.intelrealsense.com/docs/python2
-- D435i 产品页: https://www.intelrealsense.com/depth-camera-d435i/
-- IMU 坐标系说明: https://github.com/IntelRealSense/librealsense/blob/master/doc/d435i.md
+- librealsense: https://github.com/realsenseai/librealsense
+- Python 绑定文档: https://github.com/realsenseai/librealsense/tree/master/wrappers/python#table-of-contents
+- D435i 产品页: https://www.realsenseai.com/products/depth-camera-d435i/
+- IMU 坐标系说明: https://github.com/realsenseai/librealsense/blob/master/doc/d435i.md

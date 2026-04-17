@@ -121,8 +121,6 @@ def save_csv(trace: Trace, path):
 
 
 def save_png(trace: Trace, path, title: str):
-    import matplotlib
-    matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     a = trace.arrays()
     fig, axes = plt.subplots(4, 1, figsize=(10, 10), sharex=True)

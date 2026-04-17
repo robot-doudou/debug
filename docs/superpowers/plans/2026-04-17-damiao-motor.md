@@ -101,7 +101,7 @@ git commit -m "Scaffold damiao/ uv project"
 """测试 SafetyLimits 钳制逻辑 (纯函数, 无硬件)。"""
 import math
 import pytest
-from damiao.device import SafetyLimits, SAFE_DEFAULTS
+from device import SafetyLimits, SAFE_DEFAULTS
 
 
 def test_safe_defaults_values():
@@ -291,7 +291,7 @@ byte 0..7: 7F FF 7F F0 00 00 07 FF
 测试向量按官方 SDK float_to_uint (C 风格截断) 推导, 细节见 device.py 注释。
 """
 import pytest
-from damiao.device import float_to_uint, uint_to_float, pack_mit_cmd
+from device import float_to_uint, uint_to_float, pack_mit_cmd
 
 
 def test_float_to_uint_mid_point_truncates():
@@ -464,7 +464,7 @@ byte 7: T_rotor (°C, uint8)
 追加到 `tests/test_protocol.py`:
 
 ```python
-from damiao.device import MotorState, parse_mit_feedback
+from device import MotorState, parse_mit_feedback
 
 
 def test_parse_mit_feedback_zero_mid():
@@ -588,7 +588,7 @@ git commit -m "Add DM v4 MIT feedback frame parser"
 追加到 `tests/test_protocol.py`:
 
 ```python
-from damiao.device import CMD_ENABLE, CMD_DISABLE, CMD_SET_ZERO, CMD_CLEAR_ERROR
+from device import CMD_ENABLE, CMD_DISABLE, CMD_SET_ZERO, CMD_CLEAR_ERROR
 
 
 def test_cmd_enable_bytes():
@@ -669,7 +669,7 @@ git commit -m "Add DM v4 enable/disable/zero/clear command constants"
 
 ```python
 import struct
-from damiao.device import (
+from device import (
     servo_pos_frame, servo_speed_frame,
     param_read_frame, param_write_frame, param_save_frame,
 )
@@ -790,7 +790,7 @@ git commit -m "Add DM v4 servo mode and parameter register frames"
 """DMMotor 类测试 (使用 python-can virtual bus, 无物理 CAN)。"""
 import pytest
 import can
-from damiao.device import DMMotor, SAFE_DEFAULTS, CMD_ENABLE, CMD_DISABLE
+from device import DMMotor, SAFE_DEFAULTS, CMD_ENABLE, CMD_DISABLE
 
 
 @pytest.fixture

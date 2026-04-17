@@ -91,13 +91,26 @@ def main():
     print("\n=== dfu-util 烧录 ===")
     cmd = ["dfu-util", "-a", "0", "-s", "0x08000000:leave", "-D", args.bin]
     print(f"  $ {' '.join(cmd)}")
-    result = subprocess.run(cmd)
-    if result.returncode != 0:
-        print(f"[错误] dfu-util 退出码 {result.returncode}", file=sys.stderr)
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    # 透传 dfu-util 的 stdout/stderr, 方便用户看进度和诊断
+    print(result.stdout, end="")
+    if result.stderr:
+        print(result.stderr, end="", file=sys.stderr)
+    # STM32 DFU bootloader 的 :leave 步骤常常失败 (exit 74), 但 bin 其实已写入.
+    # 判定成功: 输出里有 "File downloaded successfully"; 其他退出码按真实失败处理.
+    if "File downloaded successfully" in result.stdout:
+        if result.returncode != 0:
+            print(f"[警告] dfu-util 退出码 {result.returncode} (常见: 'leave' 步骤失败),",
+                  file=sys.stderr)
+            print("       但 Flash 写入已完成. 手动拔 USB + 松 BOOT + 插回即可.",
+                  file=sys.stderr)
+    elif result.returncode != 0:
+        print(f"[错误] dfu-util 退出码 {result.returncode}, Flash 未写入",
+              file=sys.stderr)
         sys.exit(result.returncode)
 
     print("\n=== 等待固件重新枚举 ===")
-    print("  现在可以松开 BOOT 跳线 (如之前用了按钮式, 按一次 RESET)")
+    print("  拔 USB, 松开 BOOT 跳线, 插回 USB")
     if wait_for_usb_id(CANDLELIGHT_ID, timeout=10.0, label="candleLight"):
         print("\n[完成] 固件烧录成功. 下一步:")
         print("  sudo bash setup.sh    # 若还没装 systemd unit")

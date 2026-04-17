@@ -167,13 +167,15 @@ uv run pointcloud.py --view
 
 ### 查看结果 (局域网)
 
-在 Linux / 远程机器上跑完后，本机没 GUI 看图片，用 Python 内置 HTTP 服务把 `out/` 目录暴露到局域网：
+在 Linux / 远程机器上跑完后，本机没 GUI 看图片，用 `main.py` 启一个 HTTP 服务把当前目录暴露到局域网：
 
 ```bash
-uv run python -m http.server 8001
+uv run main.py              # 默认 0.0.0.0:8001
+uv run main.py -p 8080      # 换端口
+uv run main.py -b 127.0.0.1 # 仅本机
 ```
 
-在浏览器打开 `http://<设备 IP>:8001/out/` 即可浏览所有抓帧 / PLY / JSON。查本机 IP: `hostname -I` (Linux) 或 `ipconfig getifaddr en0` (macOS)。
+浏览器打开 `http://<设备 IP>:8001/out/` 即可浏览所有抓帧 / PLY / JSON。查本机 IP: `hostname -I` (Linux) 或 `ipconfig getifaddr en0` (macOS)。
 
 ## 故障排查
 

@@ -110,6 +110,18 @@ wLength:   数据字节数 + 1 (状态字节)
 | `CLEAR_CONFIGURATION` | 恢复出厂设置 |
 | `USB_BIT_DEPTH` | USB 音频位深 (16/24/32) |
 
+## Linux 权限配置
+
+DOA 等 USB 控制功能需要访问 USB 设备，普通用户默认没有权限。添加 udev 规则：
+
+```bash
+echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="2886", ATTR{idProduct}=="001a", MODE="0666"' | sudo tee /etc/udev/rules.d/99-respeaker.rules
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
+
+设置后拔插设备或重启即生效。不设规则也可以用 `sudo uv run` 临时运行。
+
 ## 使用
 
 ### 检测设备
@@ -173,6 +185,21 @@ uv run aec_test.py
 # 指定测试频率
 uv run aec_test.py --freq 500 --duration 5
 ```
+
+### DOA 声源方向检测
+
+```bash
+# 实时显示声源角度 (默认 30 秒)
+uv run doa.py
+
+# 指定时长
+uv run doa.py --duration 60
+
+# 使用 AEC_AZIMUTH_VALUES 模式 (4 波束弧度值)
+uv run doa.py --mode azimuth
+```
+
+> 需要 USB 控制权限，见 [Linux 权限配置](#linux-权限配置)。
 
 ### 降噪效果测试
 

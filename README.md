@@ -30,4 +30,4 @@ uv run detect.py
 
 | 设备 | 目录 | 状态 |
 |------|------|------|
-| ReSpeaker XVF3800 4-Mic Array | `respeaker/` | 基础调试完成 (录音/播放/VAD/AEC/降噪) |
+| ReSpeaker XVF3800 4-Mic Array | `respeaker/` | 基础调试完成 (录音/播放/VAD/AEC/降噪/DOA) |

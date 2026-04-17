@@ -6,6 +6,7 @@
 
 ```
 respeaker/       # ReSpeaker XVF3800 4-Mic Array 调试
+realsense/       # Intel RealSense D435i 深度相机调试
 ```
 
 ## 开发约定
@@ -31,3 +32,4 @@ uv run detect.py
 | 设备 | 目录 | 状态 |
 |------|------|------|
 | ReSpeaker XVF3800 4-Mic Array | `respeaker/` | 基础调试完成 (录音/播放/VAD/AEC/降噪/DOA) |
+| Intel RealSense D435i | `realsense/` | 基础调试 (检测/单帧抓取/实时流/IMU/对齐/点云) |

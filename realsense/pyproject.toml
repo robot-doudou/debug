@@ -1,0 +1,12 @@
+[project]
+name = "realsense"
+version = "0.1.0"
+description = "Intel RealSense D435i 调试工具"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    # 官方 pyrealsense2 不提供 macOS arm64 wheel, 该平台使用 cansik/pyrealsense2-macosx 社区构建
+    "pyrealsense2>=2.54; sys_platform != 'darwin' or platform_machine != 'arm64'",
+    "pyrealsense2-macosx>=2.56; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "numpy>=1.26",
+    "opencv-python>=4.9",
+]

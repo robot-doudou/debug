@@ -112,3 +112,54 @@ def pack_mit_cmd(pos: float, vel: float, kp: float, kd: float, tau: float,
         ((kd_i & 0x0F) << 4) | ((tau_i >> 8) & 0x0F),
         tau_i & 0xFF,
     ])
+
+
+# --- DM v4 MIT 反馈帧解析 ---
+
+@dataclass(frozen=True)
+class MotorState:
+    motor_id: int
+    err_code: int
+    pos: float      # rad
+    vel: float      # rad/s
+    tau: float      # N·m
+    t_mos: int      # °C
+    t_rotor: int    # °C
+
+
+# 错误码人类可读
+ERR_NAMES = {
+    0: "Disable",
+    1: "Enable",
+    8: "Overvoltage",
+    9: "Undervoltage",
+    0xA: "Overcurrent",
+    0xB: "MOS 过温",
+    0xC: "电机过温",
+    0xD: "通讯丢失",
+    0xE: "过载",
+}
+
+
+def parse_mit_feedback(data: bytes, p_max: float, v_max: float, t_max: float) -> MotorState:
+    """解析 MIT 模式反馈帧 (CAN ID = master_id, DLC = 8)。"""
+    if len(data) != 8:
+        raise ValueError(f"MIT 反馈帧应为 8 字节, 实际 {len(data)}")
+
+    motor_id = data[0] & 0x0F
+    err_code = (data[0] >> 4) & 0x0F
+    pos_i = (data[1] << 8) | data[2]
+    vel_i = (data[3] << 4) | (data[4] >> 4)
+    tau_i = ((data[4] & 0x0F) << 8) | data[5]
+    t_mos = data[6]
+    t_rotor = data[7]
+
+    return MotorState(
+        motor_id=motor_id,
+        err_code=err_code,
+        pos=uint_to_float(pos_i, -p_max, p_max, 16),
+        vel=uint_to_float(vel_i, -v_max, v_max, 12),
+        tau=uint_to_float(tau_i, -t_max, t_max, 12),
+        t_mos=t_mos,
+        t_rotor=t_rotor,
+    )

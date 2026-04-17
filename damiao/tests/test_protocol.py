@@ -67,3 +67,34 @@ def test_pack_mit_cmd_returns_8_bytes():
     data = pack_mit_cmd(pos=1.0, vel=0.5, kp=10.0, kd=0.5, tau=0.2,
                         p_max=12.5, v_max=30.0, t_max=7.0)
     assert len(data) == 8
+
+
+from device import MotorState, parse_mit_feedback
+
+
+def test_parse_mit_feedback_zero_mid():
+    # 对应 pack 全零的反馈逆过程: 7F FF 7F F? ?? T_mos T_rotor
+    # byte 0: err=1(Enable), id=0x01 → 0x11
+    # pos=0x7FFF, vel=0x7FF, tau=0x7FF
+    data = bytes([0x11, 0x7F, 0xFF, 0x7F, 0xF7, 0xFF, 0x19, 0x23])  # T_mos=25, T_rotor=35
+    state = parse_mit_feedback(data, p_max=12.5, v_max=30.0, t_max=7.0)
+    assert state.motor_id == 0x01
+    assert state.err_code == 1
+    assert state.pos == pytest.approx(0.0, abs=1e-3)
+    assert state.vel == pytest.approx(0.0, abs=1e-2)
+    assert state.tau == pytest.approx(0.0, abs=1e-2)
+    assert state.t_mos == 25
+    assert state.t_rotor == 35
+
+
+def test_parse_mit_feedback_err_code_extracted():
+    # err=0xA (Overcurrent), id=0x02 → byte0 = 0xA2
+    data = bytes([0xA2, 0x80, 0x00, 0x80, 0x08, 0x00, 0x00, 0x00])
+    state = parse_mit_feedback(data, p_max=12.5, v_max=30.0, t_max=7.0)
+    assert state.motor_id == 0x02
+    assert state.err_code == 0xA
+
+
+def test_parse_mit_feedback_wrong_length():
+    with pytest.raises(ValueError):
+        parse_mit_feedback(bytes(7), p_max=12.5, v_max=30.0, t_max=7.0)

@@ -19,7 +19,7 @@ def main():
                    help="保持使能秒数 (默认 0 = 单次使能后立即失能)")
     p.add_argument("--p-max", type=float, default=12.5)
     p.add_argument("--v-max", type=float, default=30.0)
-    p.add_argument("--t-max", type=float, default=7.0)
+    p.add_argument("--t-max", type=float, default=12.5)
     args = p.parse_args()
 
     bus = open_bus(channel="can0", bitrate=1_000_000)

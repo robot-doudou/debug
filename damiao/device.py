@@ -240,7 +240,7 @@ class DMMotor:
     """
 
     def __init__(self, bus, motor_id: int = 0x01, master_id: int = 0x11,
-                 p_max: float = 12.5, v_max: float = 30.0, t_max: float = 7.0,
+                 p_max: float = 12.5, v_max: float = 30.0, t_max: float = 12.5,
                  safety: SafetyLimits = SAFE_DEFAULTS,
                  auto_enable: bool = True,
                  ping_on_enter: bool = True):

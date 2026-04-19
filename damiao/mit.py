@@ -206,7 +206,7 @@ def main():
     p.add_argument("--master-id", type=lambda x: int(x, 0), default=0x11)
     p.add_argument("--p-max", type=float, default=12.5)
     p.add_argument("--v-max", type=float, default=30.0)
-    p.add_argument("--t-max", type=float, default=7.0)
+    p.add_argument("--t-max", type=float, default=12.5)
     p.add_argument("--unsafe", action="store_true",
                    help="放开软限幅到硬件上限")
     p.add_argument("--live", action="store_true",

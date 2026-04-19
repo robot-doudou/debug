@@ -39,8 +39,10 @@ def test_disable_sends_correct_frame(virtual_bus, listener_bus):
 
 
 def test_mit_cmd_clamps_to_safety(virtual_bus, listener_bus):
+    # 固定 t_max=7.0 让测试向量稳定 (DMMotor 默认 t_max=12.5 与 4310P 实测一致,
+    # 但测试向量 0x924 基于 t_max=7 手算得到, 保留作为协议编码参考)
     motor = DMMotor(virtual_bus, motor_id=0x01, master_id=0x11,
-                    auto_enable=False, safety=SAFE_DEFAULTS)
+                    auto_enable=False, safety=SAFE_DEFAULTS, t_max=7.0)
     # 请求 tau=10, 但 SAFE_DEFAULTS.tau=1.0, 应该被钳制
     motor.mit_cmd(pos=0, vel=0, kp=0, kd=0, tau=10.0)
     msg = listener_bus.recv(timeout=1.0)

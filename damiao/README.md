@@ -16,13 +16,15 @@
 | 转速 | — | 30 rad/s |
 | 位置范围 | — | ±12.5 rad |
 
-**DMMotor 构造默认（`p_max / v_max / t_max`）:**
+**DMMotor 构造默认（`p_max / v_max / t_max`）—— 对应电机固件 PMAX/VMAX/TMAX 寄存器值:**
 
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
-| p_max | 12.5 rad | 位置硬件上限 |
-| v_max | 30 rad/s | 速度硬件上限 |
-| t_max | 12.5 N·m | 扭矩硬件上限 |
+| p_max | 12.5 rad | 固件 PMAX (reg 0x15) |
+| v_max | 30 rad/s | 固件 VMAX (reg 0x16) |
+| t_max | 10.0 N·m | 固件 TMAX (reg 0x17) —— 注意：电机物理峰值 12.5 N·m，但固件出厂 TMAX=10 是 MIT tau 字段的缩放上限，想访问 12.5 N·m 需先用 `params.py --set TMAX 12.5 --save` 改固件 |
+
+**如果 DMMotor `t_max` 和电机固件 TMAX 不一致，MIT tau 编码会有缩放偏差**（比如你代码写 `tau=10, t_max=12.5`，电机固件 TMAX=10 实际只输出 10×(10/12.5)=8 N·m）。改寄存器和代码两端都要同步。
 
 **DM4340 参数（TODO: 待实机测试确认，以手册为准）:**
 

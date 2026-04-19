@@ -9,26 +9,47 @@ from __future__ import annotations
 import argparse
 import sys
 
+import struct
+
 from device import DMMotor, open_bus
 
+# 权威来源: cmjang/DM_Control_Python (DM_variable enum) +
+#           cmjang/DM_Motor_Control (DM_REG enum in damiao.h)
+# 两份独立实现映射完全一致, 已在 DM4310-P V4 固件上实测核对.
 REG_TABLE = {
     # reg_id: (name, is_float)
-    0x00: ("UV_Value", True),
-    0x01: ("KT_Value", True),
-    0x02: ("OT_Value", True),
-    0x03: ("OC_Value", True),
-    0x07: ("PMAX", True),
-    0x08: ("VMAX", True),
-    0x09: ("TMAX", True),
-    0x0A: ("I_BW", True),
-    0x10: ("CAN_ID", False),
-    0x11: ("MST_ID", False),
-    0x12: ("TIMEOUT", True),
-    0x13: ("CTRL_MODE", False),   # 1=MIT, 2=POS_VEL, 3=SPEED
-    0x17: ("KP_APR", True),
-    0x18: ("KI_APR", True),
-    0x19: ("KP_ASR", True),
-    0x1A: ("KI_ASR", True),
+    0x00: ("UV_Value", True),     # 欠压阈值 V
+    0x01: ("KT_Value", True),     # 扭矩系数
+    0x02: ("OT_Value", True),     # 过温阈值 °C
+    0x03: ("OC_Value", True),     # 过流阈值 A
+    0x04: ("ACC", True),          # 加速度
+    0x05: ("DEC", True),          # 减速度
+    0x06: ("MAX_SPD", True),      # 速度上限
+    0x07: ("MST_ID", False),      # 主机反馈帧 CAN ID (uint32)
+    0x08: ("ESC_ID", False),      # 电机自身 CAN ID = "CAN_ID" (uint32)
+    0x09: ("TIMEOUT", False),     # 通讯超时 (uint32)
+    0x0A: ("CTRL_MODE", False),   # 1=MIT, 2=POS_VEL, 3=VEL, 4=Torque_Pos
+    0x0B: ("Damp", True),         # 阻尼
+    0x0C: ("Inertia", True),      # 惯量
+    0x0D: ("hw_ver", False),
+    0x0E: ("sw_ver", False),
+    0x0F: ("SN", False),          # 序列号
+    0x10: ("NPP", False),         # 极对数 (4310P = 14)
+    0x11: ("Rs", True),           # 定子电阻 Ω
+    0x12: ("LS", True),           # 定子电感
+    0x13: ("Flux", True),         # 磁链
+    0x14: ("Gr", True),           # 减速比
+    0x15: ("PMAX", True),         # 位置缩放上限 rad
+    0x16: ("VMAX", True),         # 速度缩放上限 rad/s
+    0x17: ("TMAX", True),         # 扭矩缩放上限 N·m
+    0x18: ("I_BW", True),         # 电流环带宽
+    0x19: ("KP_ASR", True),       # 速度环 Kp
+    0x1A: ("KI_ASR", True),       # 速度环 Ki
+    0x1B: ("KP_APR", True),       # 位置环 Kp
+    0x1C: ("KI_APR", True),       # 位置环 Ki
+    0x1D: ("OV_Value", True),     # 过压阈值
+    0x1E: ("GREF", True),
+    0x1F: ("Deta", True),
 }
 
 
@@ -44,9 +65,18 @@ def parse_reg(s: str) -> int:
     raise argparse.ArgumentTypeError(f"未知寄存器: {s}")
 
 
-def fmt_value(reg_id: int, value: float) -> str:
-    if reg_id in REG_TABLE and not REG_TABLE[reg_id][1]:
-        return f"{int(value)} (0x{int(value):02X})"
+def decode_value(reg_id: int, raw: bytes):
+    """按 REG_TABLE 的 is_float 类型把 4 字节原始数据解成 float 或 int。"""
+    is_float = REG_TABLE.get(reg_id, (None, True))[1]
+    if is_float:
+        return struct.unpack("<f", raw)[0]
+    return struct.unpack("<I", raw)[0]
+
+
+def fmt_value(reg_id: int, value) -> str:
+    is_float = REG_TABLE.get(reg_id, (None, True))[1]
+    if not is_float:
+        return f"{value} (0x{value:02X})"
     return f"{value:.6f}"
 
 
@@ -89,17 +119,24 @@ def main():
         with DMMotor(bus, motor_id=args.motor_id, master_id=args.master_id,
                      auto_enable=False, ping_on_enter=False) as motor:
             if args.get is not None:
-                val = motor.read_param(args.get, timeout=0.3)
-                if val is None:
+                raw = motor.read_param_raw(args.get, timeout=0.3)
+                if raw is None:
                     print(f"[fail] 读 0x{args.get:02X} 超时"); sys.exit(1)
+                val = decode_value(args.get, raw)
                 name = REG_TABLE.get(args.get, (f"REG_{args.get:02X}",))[0]
                 print(f"  {name} (0x{args.get:02X}) = {fmt_value(args.get, val)}")
 
             elif args.set is not None:
                 reg = parse_reg(args.set[0])
-                val = float(args.set[1])
-                motor.write_param(reg, val)
-                print(f"  写 0x{reg:02X} = {val} (未保存到 Flash, 跑 --save 固化)")
+                is_float = REG_TABLE.get(reg, (None, True))[1]
+                if is_float:
+                    val = float(args.set[1])
+                    motor.write_param(reg, val)
+                    print(f"  写 0x{reg:02X} = {val} (float, 未保存到 Flash, --save 固化)")
+                else:
+                    val = int(args.set[1], 0)
+                    motor.write_param_uint(reg, val)
+                    print(f"  写 0x{reg:02X} = {val} (uint32, 未保存到 Flash, --save 固化)")
 
             elif args.set_zero:
                 motor.set_zero()
@@ -115,10 +152,10 @@ def main():
 
             elif args.change_id is not None:
                 new_can, new_mst = args.change_id
-                print(f"  写 CAN_ID = 0x{new_can:02X}")
-                motor.write_param(0x10, float(new_can))
+                print(f"  写 ESC_ID (CAN_ID) = 0x{new_can:02X}")
+                motor.write_param_uint(0x08, new_can)
                 print(f"  写 MST_ID = 0x{new_mst:02X}")
-                motor.write_param(0x11, float(new_mst))
+                motor.write_param_uint(0x07, new_mst)
                 print("  保存到 Flash")
                 motor.save_to_flash()
                 print(f"  [ok] 请拔电重上, 新参数: --motor-id 0x{new_can:02X} "

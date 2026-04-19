@@ -203,6 +203,12 @@ def param_write_frame(motor_id: int, reg_id: int, value: float) -> tuple[int, by
     return 0x7FF, data
 
 
+def param_write_frame_uint(motor_id: int, reg_id: int, value: int) -> tuple[int, bytes]:
+    """uint32 寄存器写帧 (ESC_ID / MST_ID / CTRL_MODE 等)。"""
+    data = bytes([motor_id & 0xFF, (motor_id >> 8) & 0xFF, PARAM_WRITE, reg_id]) + _struct.pack("<I", value)
+    return 0x7FF, data
+
+
 def param_save_frame(motor_id: int) -> tuple[int, bytes]:
     data = bytes([motor_id & 0xFF, (motor_id >> 8) & 0xFF, PARAM_SAVE, 0, 0, 0, 0, 0])
     return 0x7FF, data
@@ -240,7 +246,7 @@ class DMMotor:
     """
 
     def __init__(self, bus, motor_id: int = 0x01, master_id: int = 0x00,
-                 p_max: float = 12.5, v_max: float = 30.0, t_max: float = 12.5,
+                 p_max: float = 12.5, v_max: float = 30.0, t_max: float = 10.0,
                  safety: SafetyLimits = SAFE_DEFAULTS,
                  auto_enable: bool = True,
                  ping_on_enter: bool = True):
@@ -303,7 +309,12 @@ class DMMotor:
 
     # --- 参数读写 ---
 
-    def read_param(self, reg_id: int, timeout: float = 0.2):
+    def read_param_raw(self, reg_id: int, timeout: float = 0.2) -> bytes | None:
+        """读寄存器, 返回 4 字节原始数据 (调用方按寄存器类型自行解 float32 或 uint32)。
+
+        DM v4 响应帧 CAN ID = master_id (同 MIT 状态帧),
+        data 格式: [motor_id_lo, motor_id_hi, cmd=0x33, reg_id, b0, b1, b2, b3]
+        """
         can_id, data = param_read_frame(self.motor_id, reg_id)
         self._send(can_id, data)
         import time
@@ -315,13 +326,24 @@ class DMMotor:
             msg = self.bus.recv(timeout=remaining)
             if msg is None:
                 return None
-            if msg.arbitration_id == 0x7FF and len(msg.data) == 8 \
+            if msg.arbitration_id == self.master_id and len(msg.data) == 8 \
                and msg.data[2] == PARAM_READ and msg.data[3] == reg_id:
-                return _struct.unpack("<f", msg.data[4:8])[0]
+                return bytes(msg.data[4:8])
         return None
 
+    def read_param(self, reg_id: int, timeout: float = 0.2) -> float | None:
+        """读 float32 寄存器的便捷封装。uint 类型寄存器请用 read_param_raw 再 unpack。"""
+        raw = self.read_param_raw(reg_id, timeout)
+        return _struct.unpack("<f", raw)[0] if raw is not None else None
+
     def write_param(self, reg_id: int, value: float):
+        """写 float32 寄存器 (DM v4 常见). uint 寄存器用 write_param_uint."""
         can_id, data = param_write_frame(self.motor_id, reg_id, value)
+        self._send(can_id, data)
+
+    def write_param_uint(self, reg_id: int, value: int):
+        """写 uint32 寄存器 (如 ESC_ID / MST_ID / CTRL_MODE)."""
+        can_id, data = param_write_frame_uint(self.motor_id, reg_id, value)
         self._send(can_id, data)
 
     def save_to_flash(self):

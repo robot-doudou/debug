@@ -136,7 +136,9 @@ def test_servo_pos_frame():
 def test_servo_speed_frame():
     can_id, data = servo_speed_frame(motor_id=0x02, vel=3.14)
     assert can_id == 0x202
-    assert data == struct.pack("<f", 3.14)
+    # 官方 SDK 发 8 字节 (float + 4B 补零)
+    assert data == struct.pack("<f", 3.14) + bytes(4)
+    assert len(data) == 8
 
 
 def test_param_read_frame():

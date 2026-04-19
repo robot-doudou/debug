@@ -182,8 +182,12 @@ def servo_pos_frame(motor_id: int, pos: float, vel: float) -> tuple[int, bytes]:
 
 
 def servo_speed_frame(motor_id: int, vel: float) -> tuple[int, bytes]:
-    """Servo 速度模式帧。CAN ID = 0x200 + motor_id, DLC = 4。"""
-    return 0x200 + motor_id, _struct.pack("<f", vel)
+    """Servo 速度模式帧。CAN ID = 0x200 + motor_id, DLC = 8 (4 字节 float + 4 字节 0 填充)。
+
+    DM 官方 Python SDK (gitee kit-miao) 发送 8 字节, 部分固件对 DLC < 8 严格拒收,
+    统一按官方格式 8 字节避免兼容性问题。
+    """
+    return 0x200 + motor_id, _struct.pack("<f", vel) + bytes(4)
 
 
 # --- 参数寄存器读写 (CAN ID = 0x7FF) ---

@@ -50,6 +50,20 @@ REG_TABLE = {
     0x1D: ("OV_Value", True),     # 过压阈值
     0x1E: ("GREF", True),
     0x1F: ("Deta", True),
+    # 高级校准参数 (日常调试不用动, 列全方便 --list / --get 全量查询)
+    0x20: ("V_BW", True),
+    0x21: ("IQ_c1", True),
+    0x22: ("VL_c1", True),
+    0x23: ("can_br", False),      # uint
+    0x24: ("sub_ver", False),     # uint
+    0x32: ("u_off", True),
+    0x33: ("v_off", True),
+    0x34: ("k1", True),
+    0x35: ("k2", True),
+    0x36: ("m_off", True),
+    0x37: ("dir", False),         # uint 旋转方向
+    0x50: ("p_m", True),
+    0x51: ("xout", True),
 }
 
 

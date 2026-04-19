@@ -316,9 +316,12 @@ uv run main.py -b 127.0.0.1     # 仅本机访问
 ## 参考
 
 - 达妙官网 / 手册: https://www.damiaoyeah.com/
+- **达妙官方控制例程仓库 (Gitee)**: https://gitee.com/kit-miao/motor-control-routine/tree/master
+  - Python 版 DM_CAN.py: https://gitee.com/kit-miao/motor-control-routine/raw/master/Python%E4%BE%8B%E7%A8%8B/u2can/DM_CAN.py
+  - 本仓库 `device.py` 的 MIT/Servo/参数帧已与此例程核对一致（详见 commit history）
+- 社区实现 (C + Python, 独立核对): https://github.com/cmjang/DM_Control_Python
 - python-can 文档: https://python-can.readthedocs.io/
 - CANable 2.0 (normaldotcom slcan fork): https://github.com/normaldotcom/canable2
 - candleLight_fw (normaldotcom G431 fork): https://github.com/normaldotcom/candleLight_fw
 - candleLight_fw 上游 (不支持 G431): https://github.com/candle-usb/candleLight_fw
 - CANable 官方 web flasher: https://canable.io/updater/canable2.html
-- DM 电机 v4 协议 MIT/Servo 细节可查官方 SDK（正点原子 / GitHub 上多处开源实现）

@@ -28,9 +28,12 @@ def main():
                      p_max=args.p_max, v_max=args.v_max, t_max=args.t_max,
                      auto_enable=True) as motor:
             print(f"[ok] 已使能 motor_id=0x{args.motor_id:02X}")
+            # DM 电机命令-响应模式: 每发一帧才回一帧 state.
+            # 用 no-force MIT (kp=kd=tau=0) 持续 poll, 不施力但拿到 state.
             end = time.monotonic() + max(args.hold, 0.3)
             while time.monotonic() < end:
-                state = motor.read_state(timeout=0.15)
+                motor.mit_cmd(pos=0, vel=0, kp=0, kd=0, tau=0)
+                state = motor.read_state(timeout=0.05)
                 if state is None:
                     print("  (无反馈帧)")
                 else:

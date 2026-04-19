@@ -203,7 +203,7 @@ def main():
     p.add_argument("--amp", type=float, default=0.5, help="sine 幅值 (rad)")
     p.add_argument("--freq", type=float, default=0.5, help="sine 频率 (Hz)")
     p.add_argument("--motor-id", type=lambda x: int(x, 0), default=0x01)
-    p.add_argument("--master-id", type=lambda x: int(x, 0), default=0x11)
+    p.add_argument("--master-id", type=lambda x: int(x, 0), default=0x00)
     p.add_argument("--p-max", type=float, default=12.5)
     p.add_argument("--v-max", type=float, default=30.0)
     p.add_argument("--t-max", type=float, default=12.5)

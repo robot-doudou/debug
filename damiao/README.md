@@ -300,7 +300,8 @@ uv run main.py -b 127.0.0.1     # 仅本机访问
 | `detect.py` 找不到 USB 设备 | CANable 未插 / udev 规则未生效（跑 `setup.sh`）/ cable 只供电不通讯 |
 | `can0` 不存在 | 固件仍是 slcan（先跑 `fw_update.py`）；或内核缺 `gs_usb` 驱动 |
 | `ip link set can0 up` 失败 | 未指定 bitrate / 权限不够，跑 `sudo bash setup.sh` 装 systemd unit |
-| 电机无反馈 | `motor_id` / `master_id` 不匹配；bitrate 不是 1 Mbps；CAN_H/CAN_L 反接 |
+| 电机无反馈 | `motor_id` / `master_id` 不匹配；bitrate 不是 1 Mbps；CAN_H/CAN_L 反接；CAN GND 没接（差分信号缺共模参考）|
+| 探活默认 master_id 不对 | DM4310-P V4 出厂 master_id 实测为 `0x00`，不是某些手册写的 `0x11`；本仓库已默认 `0x00`，如手动指定别忘改 |
 | 使能后电机抽搐 | KP 过大；`pos_target` 离当前 pos 过远；未调用 `clear_error` |
 | MIT 点控不动 | `tau_limit` 比克服负载所需扭矩小，用 `--unsafe --tau 2` 试 |
 | `--live` 无窗口 | SSH 无 X11 转发，自动降级走 PNG；本地运行时检查 `DISPLAY` 环境变量 |

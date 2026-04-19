@@ -14,7 +14,7 @@ from device import DMMotor, open_bus, ERR_NAMES
 def main():
     p = argparse.ArgumentParser(description="达妙电机使能/读状态/失能")
     p.add_argument("--motor-id", type=lambda x: int(x, 0), default=0x01)
-    p.add_argument("--master-id", type=lambda x: int(x, 0), default=0x11)
+    p.add_argument("--master-id", type=lambda x: int(x, 0), default=0x00)
     p.add_argument("--hold", type=float, default=0.0,
                    help="保持使能秒数 (默认 0 = 单次使能后立即失能)")
     p.add_argument("--p-max", type=float, default=12.5)

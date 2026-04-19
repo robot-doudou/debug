@@ -53,7 +53,7 @@ def fmt_value(reg_id: int, value: float) -> str:
 def main():
     p = argparse.ArgumentParser(description="达妙电机参数读写")
     p.add_argument("--motor-id", type=lambda x: int(x, 0), default=0x01)
-    p.add_argument("--master-id", type=lambda x: int(x, 0), default=0x11)
+    p.add_argument("--master-id", type=lambda x: int(x, 0), default=0x00)
 
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("--list", action="store_true", help="列出可识别寄存器")

@@ -28,7 +28,7 @@ def main():
     p.add_argument("--duration", type=float, default=3.0)
     p.add_argument("--rate-hz", type=float, default=100.0)
     p.add_argument("--motor-id", type=lambda x: int(x, 0), default=0x01)
-    p.add_argument("--master-id", type=lambda x: int(x, 0), default=0x11)
+    p.add_argument("--master-id", type=lambda x: int(x, 0), default=0x00)
     p.add_argument("--p-max", type=float, default=12.5)
     p.add_argument("--v-max", type=float, default=30.0)
     p.add_argument("--t-max", type=float, default=12.5)

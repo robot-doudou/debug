@@ -239,7 +239,7 @@ class DMMotor:
     退出: 无条件发 disable (最多重试一次, 即使 bus 异常也尽力而为)
     """
 
-    def __init__(self, bus, motor_id: int = 0x01, master_id: int = 0x11,
+    def __init__(self, bus, motor_id: int = 0x01, master_id: int = 0x00,
                  p_max: float = 12.5, v_max: float = 30.0, t_max: float = 12.5,
                  safety: SafetyLimits = SAFE_DEFAULTS,
                  auto_enable: bool = True,

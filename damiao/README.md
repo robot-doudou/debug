@@ -284,6 +284,143 @@ uv run main.py -b 127.0.0.1     # 仅本机访问
 
 ---
 
+## 多电机配置（12 电机四足）
+
+豆豆四足 = 4 腿 × 3 关节 = **12 电机**。出厂电机全是 `motor_id=0x01, master_id=0x00`，多颗共总线**必须先孤立配 ID**，否则同 ID 帧会冲突无法配置。
+
+### 推荐 ID 分配
+
+| 腿 | 关节 | motor_id | MST_ID |
+|----|------|---------|--------|
+| **FL**（前左） | HAA (Hip 外展) | 0x01 | 0x11 |
+|  | HFE (Thigh) | 0x02 | 0x12 |
+|  | KFE (Knee) | 0x03 | 0x13 |
+| **FR**（前右） | HAA | 0x04 | 0x14 |
+|  | HFE | 0x05 | 0x15 |
+|  | KFE | 0x06 | 0x16 |
+| **RL**（后左） | HAA | 0x07 | 0x17 |
+|  | HFE | 0x08 | 0x18 |
+|  | KFE | 0x09 | 0x19 |
+| **RR**（后右） | HAA | 0x0A | 0x1A |
+|  | HFE | 0x0B | 0x1B |
+|  | KFE | 0x0C | 0x1C |
+
+**编号规则：**
+
+- `motor_id = leg_idx × 3 + joint_idx + 1`，腿顺序 FL/FR/RL/RR，关节顺序 HAA/HFE/KFE
+- `MST_ID = motor_id + 0x10`，命令 ID(0x01-0x0C) 与回复 ID(0x11-0x1C) 不冲突
+- `motor_id ≤ 0x0F`：MIT 反馈帧 byte 0 低 4 bit 装 motor_id，**≥ 16 会被截断**，12 颗刚好够用 1-C
+- `motor_id = 0x00` 不用：避免和广播/调试保留值打架
+
+### 配置命令（每颗电机走一遍）
+
+**关键：一次只让一颗待配电机在总线上**（出厂全都是 0x01，多颗同 ID 会撞）。
+
+```bash
+# 步骤循环 12 次, 每次:
+#   1) 拔掉所有已配好的电机 CAN 线 (动力线可以保留)
+#   2) 接上下一颗待配电机的 CAN_H/L/GND
+#   3) 给这颗电机上电
+#   4) 跑下面对应的 uv 命令
+#   5) 拔电重上 (ID 更改后必须复位)
+#   6) 用新 ID 验证
+
+# FL (前左)
+uv run params.py --change-id 0x01 0x11 --confirm-id-change   # FL_HAA (出厂默认即 0x01/0x00, 此条只改 MST_ID)
+uv run params.py --change-id 0x02 0x12 --confirm-id-change   # FL_HFE
+uv run params.py --change-id 0x03 0x13 --confirm-id-change   # FL_KFE
+
+# FR (前右)
+uv run params.py --change-id 0x04 0x14 --confirm-id-change   # FR_HAA
+uv run params.py --change-id 0x05 0x15 --confirm-id-change   # FR_HFE
+uv run params.py --change-id 0x06 0x16 --confirm-id-change   # FR_KFE
+
+# RL (后左)
+uv run params.py --change-id 0x07 0x17 --confirm-id-change   # RL_HAA
+uv run params.py --change-id 0x08 0x18 --confirm-id-change   # RL_HFE
+uv run params.py --change-id 0x09 0x19 --confirm-id-change   # RL_KFE
+
+# RR (后右)
+uv run params.py --change-id 0x0A 0x1A --confirm-id-change   # RR_HAA
+uv run params.py --change-id 0x0B 0x1B --confirm-id-change   # RR_HFE
+uv run params.py --change-id 0x0C 0x1C --confirm-id-change   # RR_KFE
+```
+
+**每颗电机配完立刻验证：**
+
+```bash
+# 拔电重上后, 用新 ID 探活
+uv run detect.py --motor-id 0x05 --master-id 0x15   # 例: 验 FR_HFE
+```
+
+**全部 12 颗配完后挂总线测试：**
+
+```bash
+# 12 颗全接, 总线 + can0 + 电源都通
+for id in 01 02 03 04 05 06 07 08 09 0A 0B 0C; do
+    mst=$((0x$id + 0x10))
+    printf '\n=== motor 0x%s / mst 0x%X ===\n' "$id" "$mst"
+    uv run detect.py --motor-id 0x$id --master-id $(printf '0x%X' $mst) --skip-motor=false
+done
+```
+
+### 总线带宽分析
+
+12 电机共 1 路 CAN 1 Mbps，每电机命令+回复 = 2 帧/控制周期。1 Mbps CAN 实际有效帧率约 **7000-8000 帧/s**（8B 数据帧含 ACK/间隙约 135 bit）：
+
+| 控制频率 | 12 电机总帧/s | 1 Mbps 单路是否够 |
+|---------|--------------|-------------------|
+| 1 kHz | 24000 | ❌ 超 |
+| 500 Hz | 12000 | ❌ 超 |
+| 300 Hz | 7200 | ⚠️  贴上限 |
+| **200 Hz** | 4800 | ✅ 余 40% |
+| 100 Hz | 2400 | ✅ 宽松 |
+
+**前期建议：单路 CAN + 200 Hz 控制**（站立、慢走、姿态保持完全够用）。
+
+**升级路径（C scope）：**
+
+| 方案 | CANable 数 | 每路电机 | 控制率上限 |
+|------|-----------|---------|-----------|
+| 单路 | 1 | 12 | ~300 Hz |
+| **两路（前/后腿分）** | 2 | 6 | ~600 Hz |
+| 四路（每腿独立） | 4 | 3 | 1 kHz+ |
+
+参考：Unitree A1/Go1 用 4 路 CAN；MIT Cheetah 用 4 路 SPI；多数 DIY 四足用 2 路 CAN。
+
+### 多电机 Python 调用模式
+
+`device.py` 支持同一 `bus` 实例挂多个 `DMMotor`，无需为每颗电机开独立总线：
+
+```python
+from device import open_bus, DMMotor
+
+bus = open_bus(channel="can0", bitrate=1_000_000)
+
+LEGS = ["FL", "FR", "RL", "RR"]
+JOINTS = ["HAA", "HFE", "KFE"]
+
+motors = {}
+for leg_idx, leg in enumerate(LEGS):
+    for joint_idx, joint in enumerate(JOINTS):
+        mid = leg_idx * 3 + joint_idx + 1   # 0x01 - 0x0C
+        motors[(leg, joint)] = DMMotor(
+            bus,
+            motor_id=mid,
+            master_id=mid + 0x10,           # 0x11 - 0x1C
+            auto_enable=False,              # 多电机统一启停由调度器管
+        )
+
+# 控制循环里:
+# for key, m in motors.items():
+#     m.mit_cmd(pos=..., vel=..., kp=..., kd=..., tau=...)
+#     state = m.read_state()  # 各自按 master_id 取自己的回复帧
+```
+
+**注意**：当前 `DMMotor.read_state` 只按 `master_id` 过滤，不再校验帧 byte 0 的 motor_id 字段。**前提是每颗电机 MST_ID 唯一**（按上面的表配 ID 后自然满足）。如果未来想几颗共用 MST_ID（节省地址空间），需要给 `read_state` 加 motor_id 二次校验。
+
+---
+
 ## 后续规划
 
 以下功能在 C 范围规划中，暂未实现：

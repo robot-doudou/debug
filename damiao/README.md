@@ -353,71 +353,19 @@ uv run params.py --change-id 0x0C 0x1C --confirm-id-change   # RR_KFE
 uv run detect.py --motor-id 0x05 --master-id 0x15   # 例: 验 FR_HFE
 ```
 
-**全部 12 颗配完后挂总线测试：**
+**全部 12 颗配完后挂总线扫描验证：用 `multi_motor.py`**
 
 ```bash
-# 12 颗全接, 总线 + can0 + 电源都通
-for id in 01 02 03 04 05 06 07 08 09 0A 0B 0C; do
-    mst=$((0x$id + 0x10))
-    printf '\n=== motor 0x%s / mst 0x%X ===\n' "$id" "$mst"
-    uv run detect.py --motor-id 0x$id --master-id $(printf '0x%X' $mst) --skip-motor=false
-done
+uv run multi_motor.py --scan          # 探活全部 12 颗, 报告 alive/dead 列表
+uv run multi_motor.py --scan --leg FL # 只扫前左 3 颗
+uv run multi_motor.py --read --hold 3 # 全部 enable 3 秒读 state, 然后失能
 ```
 
-### 总线带宽分析
+详见 `multi_motor.py --help`。
 
-12 电机共 1 路 CAN 1 Mbps，每电机命令+回复 = 2 帧/控制周期。1 Mbps CAN 实际有效帧率约 **7000-8000 帧/s**（8B 数据帧含 ACK/间隙约 135 bit）：
+### 总线带宽
 
-| 控制频率 | 12 电机总帧/s | 1 Mbps 单路是否够 |
-|---------|--------------|-------------------|
-| 1 kHz | 24000 | ❌ 超 |
-| 500 Hz | 12000 | ❌ 超 |
-| 300 Hz | 7200 | ⚠️  贴上限 |
-| **200 Hz** | 4800 | ✅ 余 40% |
-| 100 Hz | 2400 | ✅ 宽松 |
-
-**前期建议：单路 CAN + 200 Hz 控制**（站立、慢走、姿态保持完全够用）。
-
-**升级路径（C scope）：**
-
-| 方案 | CANable 数 | 每路电机 | 控制率上限 |
-|------|-----------|---------|-----------|
-| 单路 | 1 | 12 | ~300 Hz |
-| **两路（前/后腿分）** | 2 | 6 | ~600 Hz |
-| 四路（每腿独立） | 4 | 3 | 1 kHz+ |
-
-参考：Unitree A1/Go1 用 4 路 CAN；MIT Cheetah 用 4 路 SPI；多数 DIY 四足用 2 路 CAN。
-
-### 多电机 Python 调用模式
-
-`device.py` 支持同一 `bus` 实例挂多个 `DMMotor`，无需为每颗电机开独立总线：
-
-```python
-from device import open_bus, DMMotor
-
-bus = open_bus(channel="can0", bitrate=1_000_000)
-
-LEGS = ["FL", "FR", "RL", "RR"]
-JOINTS = ["HAA", "HFE", "KFE"]
-
-motors = {}
-for leg_idx, leg in enumerate(LEGS):
-    for joint_idx, joint in enumerate(JOINTS):
-        mid = leg_idx * 3 + joint_idx + 1   # 0x01 - 0x0C
-        motors[(leg, joint)] = DMMotor(
-            bus,
-            motor_id=mid,
-            master_id=mid + 0x10,           # 0x11 - 0x1C
-            auto_enable=False,              # 多电机统一启停由调度器管
-        )
-
-# 控制循环里:
-# for key, m in motors.items():
-#     m.mit_cmd(pos=..., vel=..., kp=..., kd=..., tau=...)
-#     state = m.read_state()  # 各自按 master_id 取自己的回复帧
-```
-
-**注意**：当前 `DMMotor.read_state` 只按 `master_id` 过滤，不再校验帧 byte 0 的 motor_id 字段。**前提是每颗电机 MST_ID 唯一**（按上面的表配 ID 后自然满足）。如果未来想几颗共用 MST_ID（节省地址空间），需要给 `read_state` 加 motor_id 二次校验。
+单路 CAN 1 Mbps 实际帧率上限 ~7-8k 帧/s。12 电机命令+回复 = 24 帧/周期，**前期建议 200 Hz 控制**（4800 帧/s，余 40% 带宽）。1 kHz 控制需要 4 路 CAN（每腿独立），属 C scope 升级路径。
 
 ---
 

@@ -207,12 +207,19 @@ make
 
 ## 使用
 
+**所有单电机脚本（detect / enable / mit / servo / params）共用一套 ID 参数：**
+
+- `--id N`（十进制 1..15）—— **快捷写法**：`motor_id = N`，`master_id = N + 0x10`。例：`--id 2` ≡ `--motor-id 0x02 --master-id 0x12`；`--id 10` ≡ `--motor-id 0x0A --master-id 0x1A`
+- `--motor-id 0xXX` / `--master-id 0xXX` —— 显式指定（可覆盖 `--id` 推算值，比如出厂电机 motor_id=0x01、master_id=0x00，不走 `--id` 的 +0x10 约定）
+- 都不给 → 默认 `0x01 / 0x00`（刚到手出厂电机）
+
 ### detect.py — 检测设备
 
 ```bash
-uv run detect.py                      # 完整检测（USB + can0 + 电机探活）
+uv run detect.py                      # 完整检测（USB + can0 + 电机探活, 用出厂默认 0x01/0x00）
 uv run detect.py --skip-motor         # 只做 USB + can0
-uv run detect.py --motor-id 0x05      # 非默认 ID 电机
+uv run detect.py --id 5               # 探活 FR_HFE (motor=0x05, master=0x15)
+uv run detect.py --motor-id 0x05      # 非 +0x10 约定的电机, 配合 --master-id 用
 ```
 
 枚举 CANable 2.0（两种 VID:PID）、检查 `can0` 状态、发送 1-shot 探活帧并读取电机固件版本。

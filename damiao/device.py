@@ -218,6 +218,46 @@ def param_save_frame(motor_id: int) -> tuple[int, bytes]:
     return 0x7FF, data
 
 
+# --- argparse 共享: --id / --motor-id / --master-id ---
+
+def add_id_args(p, default_motor: int = 0x01, default_master: int = 0x00):
+    """给 argparse 加 --id / --motor-id / --master-id, 支持 --id N 快捷写法。
+
+    --id N (十进制整数 1-15):
+        motor_id = N, master_id = N + 0x10
+        例: --id 2  ≡  --motor-id 0x02 --master-id 0x12
+           --id 10 ≡  --motor-id 0x0A --master-id 0x1A
+    显式 --motor-id / --master-id 覆盖 --id 推算出的值。
+    """
+    p.add_argument("--id", type=int, default=None, metavar="N",
+                   help="快捷: --motor-id=N, --master-id=N+0x10 (N 十进制 1..15)")
+    p.add_argument("--motor-id", type=lambda x: int(x, 0), default=None,
+                   help=f"电机 CAN ID (默认 0x{default_motor:02X})")
+    p.add_argument("--master-id", type=lambda x: int(x, 0), default=None,
+                   help=f"主机反馈 ID (默认 0x{default_master:02X})")
+    # 存到 parser 上供 resolve_ids 取默认值
+    p._dm_default_motor = default_motor
+    p._dm_default_master = default_master
+
+
+def resolve_ids(p, args):
+    """解析 --id / --motor-id / --master-id 优先级, 结果写回 args。
+
+    顺序: 显式 --motor-id / --master-id 优先 > --id 推算 > argparse 默认值。
+    """
+    if args.id is not None:
+        if not 1 <= args.id <= 0x0F:
+            p.error(f"--id 必须在 1..15 (motor_id 最大 0x0F, nibble 限制); 收到 {args.id}")
+        if args.motor_id is None:
+            args.motor_id = args.id
+        if args.master_id is None:
+            args.master_id = args.id + 0x10
+    if args.motor_id is None:
+        args.motor_id = p._dm_default_motor
+    if args.master_id is None:
+        args.master_id = p._dm_default_master
+
+
 # --- 总线打开 (socketcan 优先, slcan 降级) ---
 
 def open_bus(channel: str = "can0",

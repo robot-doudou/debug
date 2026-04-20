@@ -8,19 +8,19 @@ from __future__ import annotations
 import argparse
 import time
 
-from device import DMMotor, open_bus, ERR_NAMES
+from device import DMMotor, open_bus, ERR_NAMES, add_id_args, resolve_ids
 
 
 def main():
     p = argparse.ArgumentParser(description="达妙电机使能/读状态/失能")
-    p.add_argument("--motor-id", type=lambda x: int(x, 0), default=0x01)
-    p.add_argument("--master-id", type=lambda x: int(x, 0), default=0x00)
+    add_id_args(p)
     p.add_argument("--hold", type=float, default=0.0,
                    help="保持使能秒数 (默认 0 = 单次使能后立即失能)")
     p.add_argument("--p-max", type=float, default=12.5)
     p.add_argument("--v-max", type=float, default=30.0)
     p.add_argument("--t-max", type=float, default=10.0)
     args = p.parse_args()
+    resolve_ids(p, args)
 
     bus = open_bus(channel="can0", bitrate=1_000_000)
     try:

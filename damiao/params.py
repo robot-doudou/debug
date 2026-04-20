@@ -11,7 +11,7 @@ import sys
 
 import struct
 
-from device import DMMotor, open_bus
+from device import DMMotor, open_bus, add_id_args, resolve_ids
 
 # 权威来源: cmjang/DM_Control_Python (DM_variable enum) +
 #           cmjang/DM_Motor_Control (DM_REG enum in damiao.h)
@@ -96,8 +96,7 @@ def fmt_value(reg_id: int, value) -> str:
 
 def main():
     p = argparse.ArgumentParser(description="达妙电机参数读写")
-    p.add_argument("--motor-id", type=lambda x: int(x, 0), default=0x01)
-    p.add_argument("--master-id", type=lambda x: int(x, 0), default=0x00)
+    add_id_args(p)
 
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("--list", action="store_true", help="列出可识别寄存器")
@@ -114,6 +113,7 @@ def main():
 
     p.add_argument("--confirm-id-change", action="store_true")
     args = p.parse_args()
+    resolve_ids(p, args)
 
     if args.list:
         print(f"{'REG':>5}  {'NAME':<12}  TYPE")

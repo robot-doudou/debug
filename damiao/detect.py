@@ -12,7 +12,7 @@ import re
 import subprocess
 import sys
 
-from device import DMMotor, open_bus
+from device import DMMotor, open_bus, add_id_args, resolve_ids
 
 CANABLE_USB_IDS = {
     "16d0:117e": "slcan (normaldotcom fork)",
@@ -79,10 +79,10 @@ def ping_motor(motor_id: int, master_id: int) -> tuple[bool, str]:
 
 def main():
     p = argparse.ArgumentParser(description="检测 CANable 2.0 + can0 + 达妙电机")
-    p.add_argument("--motor-id", type=lambda x: int(x, 0), default=0x01)
-    p.add_argument("--master-id", type=lambda x: int(x, 0), default=0x00)
+    add_id_args(p)
     p.add_argument("--skip-motor", action="store_true", help="只做 USB + can0 检测")
     args = p.parse_args()
+    resolve_ids(p, args)
 
     print("=== USB 设备检测 (CANable 2.0) ===")
     usb = detect_usb()

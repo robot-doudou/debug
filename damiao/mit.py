@@ -26,6 +26,7 @@ import numpy as np
 from device import (
     DMMotor, open_bus, output_dir, timestamped,
     SafetyLimits, SAFE_DEFAULTS, has_display, ERR_NAMES,
+    add_id_args, resolve_ids,
 )
 
 
@@ -202,8 +203,7 @@ def main():
     p.add_argument("--target", type=float, default=0.5, help="step 目标 pos (rad)")
     p.add_argument("--amp", type=float, default=0.5, help="sine 幅值 (rad)")
     p.add_argument("--freq", type=float, default=0.5, help="sine 频率 (Hz)")
-    p.add_argument("--motor-id", type=lambda x: int(x, 0), default=0x01)
-    p.add_argument("--master-id", type=lambda x: int(x, 0), default=0x00)
+    add_id_args(p)
     p.add_argument("--p-max", type=float, default=12.5)
     p.add_argument("--v-max", type=float, default=30.0)
     p.add_argument("--t-max", type=float, default=10.0)
@@ -212,6 +212,7 @@ def main():
     p.add_argument("--live", action="store_true",
                    help="弹实时 matplotlib 窗口 (无 DISPLAY 自动降级)")
     args = p.parse_args()
+    resolve_ids(p, args)
 
     if args.unsafe:
         safety = SafetyLimits(tau=args.t_max, vel=args.v_max, pos=args.p_max,

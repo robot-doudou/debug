@@ -15,6 +15,7 @@ import time
 from device import (
     DMMotor, open_bus, output_dir, timestamped,
     SafetyLimits, SAFE_DEFAULTS, ERR_NAMES,
+    add_id_args, resolve_ids,
 )
 
 
@@ -27,13 +28,13 @@ def main():
                    help="pos 模式前馈速度 rad/s")
     p.add_argument("--duration", type=float, default=3.0)
     p.add_argument("--rate-hz", type=float, default=100.0)
-    p.add_argument("--motor-id", type=lambda x: int(x, 0), default=0x01)
-    p.add_argument("--master-id", type=lambda x: int(x, 0), default=0x00)
+    add_id_args(p)
     p.add_argument("--p-max", type=float, default=12.5)
     p.add_argument("--v-max", type=float, default=30.0)
     p.add_argument("--t-max", type=float, default=10.0)
     p.add_argument("--unsafe", action="store_true")
     args = p.parse_args()
+    resolve_ids(p, args)
 
     safety = (SafetyLimits(tau=args.t_max, vel=args.v_max, pos=args.p_max,
                            kp=500.0, kd=5.0) if args.unsafe else SAFE_DEFAULTS)

@@ -194,23 +194,51 @@ def run_live(profile_fn, duration, motor, kp, kd, rate_hz) -> Trace:
 
 
 def main():
-    p = argparse.ArgumentParser(description="MIT 模式点控测试")
-    p.add_argument("--profile", choices=["step", "sine", "hold"], default="sine")
-    p.add_argument("--duration", type=float, default=5.0)
-    p.add_argument("--rate-hz", type=float, default=200.0)
-    p.add_argument("--kp", type=float, default=10.0)
-    p.add_argument("--kd", type=float, default=0.5)
-    p.add_argument("--target", type=float, default=0.5, help="step 目标 pos (rad)")
-    p.add_argument("--amp", type=float, default=0.5, help="sine 幅值 (rad)")
-    p.add_argument("--freq", type=float, default=0.5, help="sine 频率 (Hz)")
+    p = argparse.ArgumentParser(
+        description=(
+            "MIT 模式点控测试。电机每帧扭矩 = kp*(pos_cmd-pos) + kd*(vel_cmd-vel) + tau_ff。\n"
+            "本脚本所有 profile tau_ff=0, 只用 kp/kd + 轨迹驱动。"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument("--profile", choices=["step", "sine", "hold"], default="sine",
+                   help="轨迹: step=阶跃(0.5s 后跳到 --target); sine=正弦摆动(--amp/--freq); "
+                        "hold=保持起始位 (手拨测扰动响应). 默认 sine")
+    p.add_argument("--duration", type=float, default=5.0,
+                   help="运行秒数 (默认 5)")
+    p.add_argument("--rate-hz", type=float, default=200.0,
+                   help="控制循环频率 Hz (默认 200). 越高越平滑但吃 CAN 带宽; "
+                        "多电机场景见 README 带宽分析")
+    p.add_argument("--kp", type=float, default=10.0,
+                   help="位置环增益 N·m/rad (刚度, stiffness). "
+                        "越大越硬地拉向目标. 默认 10. SAFE_DEFAULTS 上限 20; "
+                        "--unsafe 可到 500. 想响应快: 提到 20-50")
+    p.add_argument("--kd", type=float, default=0.5,
+                   help="速度环增益 N·m·s/rad (阻尼, damping). "
+                        "越大越抑制运动快慢. 默认 0.5. SAFE_DEFAULTS 上限 1; "
+                        "--unsafe 可到 5. 想响应快: 降到 0.3-0.5 (太低会震荡)")
+    p.add_argument("--target", type=float, default=0.5,
+                   help="step 模式目标位置偏移 rad, 相对起始 pos (默认 0.5 ≈ 28°)")
+    p.add_argument("--amp", type=float, default=0.5,
+                   help="sine 模式摆幅 rad, 相对起始 pos (默认 0.5 ≈ 28°)")
+    p.add_argument("--freq", type=float, default=0.5,
+                   help="sine 模式频率 Hz (默认 0.5). 想快: 1-2 Hz; "
+                        "注意高频需要更高 kp 才能跟住目标")
     add_id_args(p)
-    p.add_argument("--p-max", type=float, default=12.5)
-    p.add_argument("--v-max", type=float, default=30.0)
-    p.add_argument("--t-max", type=float, default=10.0)
+    p.add_argument("--p-max", type=float, default=12.5,
+                   help="位置编码上限 rad, 必须等于电机 PMAX 寄存器 (默认 12.5); "
+                        "不一致会让 pos 编码错位")
+    p.add_argument("--v-max", type=float, default=30.0,
+                   help="速度编码上限 rad/s, 匹配 VMAX 寄存器 (默认 30)")
+    p.add_argument("--t-max", type=float, default=10.0,
+                   help="扭矩编码上限 N·m, 匹配 TMAX 寄存器 (默认 10). "
+                        "不是施力上限——施力由 SAFE_DEFAULTS.tau 或 --unsafe 决定")
     p.add_argument("--unsafe", action="store_true",
-                   help="放开软限幅到硬件上限")
+                   help="放开 SAFE_DEFAULTS 软限幅: tau 1→10, vel 5→30, pos π→12.5, "
+                        "kp 20→500, kd 1→5. 调大 kp 或高频跟踪时需要这个")
     p.add_argument("--live", action="store_true",
-                   help="弹实时 matplotlib 窗口 (无 DISPLAY 自动降级)")
+                   help="弹 matplotlib 实时窗口, 关窗后同时落 CSV+PNG; "
+                        "无 DISPLAY/WAYLAND_DISPLAY 自动降级纯静态输出")
     args = p.parse_args()
     resolve_ids(p, args)
 

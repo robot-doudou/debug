@@ -166,11 +166,18 @@ def main():
 
             elif args.change_id is not None:
                 new_can, new_mst = args.change_id
-                print(f"  写 ESC_ID (CAN_ID) = 0x{new_can:02X}")
-                motor.write_param_uint(0x08, new_can)
-                print(f"  写 MST_ID = 0x{new_mst:02X}")
+                # 注意顺序: 先写 MST_ID (用旧 motor_id 能匹配到电机),
+                # 再写 ESC_ID (写入瞬间电机切到新 ID, 之后 save 必须用新 ID).
+                print(f"  写 MST_ID = 0x{new_mst:02X} (旧 motor_id=0x{args.motor_id:02X})")
                 motor.write_param_uint(0x07, new_mst)
-                print("  保存到 Flash")
+                print(f"  写 ESC_ID (CAN_ID) = 0x{new_can:02X} (电机此时切到新 ID)")
+                motor.write_param_uint(0x08, new_can)
+
+                # ESC_ID 写入后电机立即切到新 ID, save 命令的 motor_id 字段必须跟新值.
+                # 另外 master_id 也同步到新 MST_ID, 保证 save 的回复能被收到 (虽然目前没读 save 回复).
+                motor.motor_id = new_can
+                motor.master_id = new_mst
+                print("  保存到 Flash (使用新 motor_id)")
                 motor.save_to_flash()
                 print(f"  [ok] 请拔电重上, 新参数: --motor-id 0x{new_can:02X} "
                       f"--master-id 0x{new_mst:02X}")

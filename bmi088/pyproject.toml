@@ -1,0 +1,9 @@
+[project]
+name = "bmi088"
+version = "0.1.0"
+description = "Bosch BMI088 六轴 IMU 调试工具 (Jetson SPI)"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "spidev>=3.6",
+    "numpy>=1.26",
+]

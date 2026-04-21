@@ -192,6 +192,20 @@ uv run stream.py --save auto --duration 60
 uv run stream.py --adcrange 1
 ```
 
+### 电量估算 (SoC)
+
+6S LiPo 3000 mAh，混合法（启动 OCV 定初值 + 运行 CHARGE 硬件积分 + 静置 OCV 再锚定），全自动，无需指定"是否刚充满"：
+
+```bash
+# 持续跑
+uv run soc.py
+
+# 跑一小段测试
+uv run soc.py --duration 30 --print-every 2
+```
+
+状态持久化到 `out/soc_state.json`，Ctrl+C 或收到 SIGTERM 会立即存盘；下次启动若静置 (I<1A) 会直接用 OCV 重估，否则尝试从状态文件 resume。电池参数（cells / 容量 / OCV 曲线 / 阈值）在 `soc.py` 顶部改。
+
 ### 局域网查看结果
 
 ```bash

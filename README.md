@@ -38,4 +38,4 @@ uv run detect.py
 | Intel RealSense D435i | `realsense/` | 基础调试 (检测/单帧抓取/实时流/IMU/对齐/点云) |
 | 达妙电机 DM4310-P / DM4340 | `damiao/` | 基础调试 (使能/MIT/Servo/参数/录波, 多电机+固件升级规划中) |
 | Bosch BMI088 六轴 IMU | `bmi088/` | 基础调试完成 (detect/probe/stream/imu，含 CHIP_ID / 重力模长 / 陀螺零偏校验，GYR ODR 可配) |
-| TI INA228 电流/功率监测 | `ina228/` | 基础调试完成 (detect/read/stream，V/I/P/T + 硬件能耗积分全验证，6S 电池实测 22.65V) |
+| TI INA228 电流/功率监测 | `ina228/` | 基础调试 + 电量估算 (detect/read/stream/soc，OCV+CHARGE 混合法，6S 3000mAh 自动识别) |

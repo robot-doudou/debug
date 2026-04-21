@@ -1,0 +1,9 @@
+[project]
+name = "ina228"
+version = "0.1.0"
+description = "TI INA228 电流/电压/功率监测调试工具 (Jetson I2C)"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "smbus2>=0.4.3",
+    "numpy>=1.26",
+]

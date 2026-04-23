@@ -113,8 +113,8 @@ def main():
     print("  拔 USB, 松开 BOOT 跳线, 插回 USB")
     if wait_for_usb_id(CANDLELIGHT_ID, timeout=10.0, label="candleLight"):
         print("\n[完成] 固件烧录成功. 下一步:")
-        print("  sudo bash setup.sh    # 若还没装 systemd unit")
-        print("  ip -details link show can0")
+        print("  sudo bash setup.sh    # 若还没装 udev 规则")
+        print("  ip -details link show type can   # 找 gs_usb 那个 (Jetson 上通常 can1)")
         print("  uv run detect.py")
     else:
         print("[警告] 10s 内未检测到 candleLight. 手动拔插一次再查 lsusb.")

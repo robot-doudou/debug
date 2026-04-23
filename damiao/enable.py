@@ -22,7 +22,7 @@ def main():
     args = p.parse_args()
     resolve_ids(p, args)
 
-    bus = open_bus(channel="can0", bitrate=1_000_000)
+    bus = open_bus(bitrate=1_000_000)
     try:
         with DMMotor(bus, motor_id=args.motor_id, master_id=args.master_id,
                      p_max=args.p_max, v_max=args.v_max, t_max=args.t_max,

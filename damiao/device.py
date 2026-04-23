@@ -258,17 +258,51 @@ def resolve_ids(p, args):
         args.master_id = p._dm_default_master
 
 
+# --- CAN 接口自动识别 (Jetson 上 can0 可能是 SoC MTTCAN, CANable 在 can1) ---
+
+ARPHRD_CAN = "280"  # /sys/class/net/<if>/type 对 CAN netdev 的固定值
+
+
+def list_can_interfaces() -> list[tuple[str, str]]:
+    """返回 [(接口名, 驱动名)], 比如 [('can0','mttcan'), ('can1','gs_usb')]。"""
+    import pathlib
+    out = []
+    for net in sorted(pathlib.Path("/sys/class/net").iterdir()):
+        type_file = net / "type"
+        if not type_file.is_file() or type_file.read_text().strip() != ARPHRD_CAN:
+            continue
+        drv = net / "device" / "driver"
+        driver_name = drv.resolve().name if drv.is_symlink() else "?"
+        out.append((net.name, driver_name))
+    return out
+
+
+def find_can_interface(prefer_driver: str = "gs_usb") -> str | None:
+    """按驱动优先级选 CAN 接口。找不到 prefer_driver 降级返回第一个 CAN netdev。"""
+    ifs = list_can_interfaces()
+    for name, drv in ifs:
+        if drv == prefer_driver:
+            return name
+    return ifs[0][0] if ifs else None
+
+
 # --- 总线打开 (socketcan 优先, slcan 降级) ---
 
-def open_bus(channel: str = "can0",
+def open_bus(channel: str | None = None,
              bitrate: int = 1_000_000,
              slcan_fallback: str | None = "/dev/ttyACM0"):
     """优先尝试 SocketCAN (candleLight 固件), 失败且 slcan_fallback 非 None 时
     回退到 slcan (normaldotcom slcan 固件)。
 
+    channel=None 时自动识别: 先读环境变量 DAMIAO_CAN_IF, 再走 find_can_interface()
+    优先选 gs_usb (CANable), 降级第一个 CAN netdev, 最后兜底 'can0'。
+
     返回 can.BusABC 实例, 调用方负责 shutdown()。
     """
     import can
+
+    if channel is None:
+        channel = os.environ.get("DAMIAO_CAN_IF") or find_can_interface() or "can0"
 
     try:
         return can.Bus(interface="socketcan", channel=channel, bitrate=bitrate)

@@ -128,7 +128,7 @@ def main():
               file=sys.stderr)
         sys.exit(2)
 
-    bus = open_bus(channel="can0", bitrate=1_000_000)
+    bus = open_bus(bitrate=1_000_000)
     try:
         with DMMotor(bus, motor_id=args.motor_id, master_id=args.master_id,
                      auto_enable=False, ping_on_enter=False) as motor:

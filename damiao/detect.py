@@ -1,9 +1,12 @@
-"""检测 CANable 2.0 USB 设备、can0 链路状态、探活达妙电机。
+"""检测 CANable 2.0 USB 设备、列举所有 CAN 接口、探活达妙电机。
 
 显示:
 - USB 层 (lsusb): 找 16d0:117e (slcan) 或 1d50:606f (candleLight)
-- 网络层: can0 接口是否 UP, bitrate
+- 网络层: 所有 CAN netdev + 其驱动 (gs_usb=CANable, mttcan=Jetson SoC 内置)
 - 协议层: 对 motor_id 发一次控制帧, 等反馈
+
+Jetson 专属坑: Orin SoC 内置 MTTCAN 控制器通常占 can0, CANable 会被分到 can1。
+脚本默认按驱动 (gs_usb) 自动选 CANable 接口, 不再硬编 can0。
 """
 from __future__ import annotations
 
@@ -12,11 +15,19 @@ import re
 import subprocess
 import sys
 
-from device import DMMotor, open_bus, add_id_args, resolve_ids
+from device import (DMMotor, open_bus, add_id_args, resolve_ids,
+                    list_can_interfaces, find_can_interface)
 
 CANABLE_USB_IDS = {
     "16d0:117e": "slcan (normaldotcom fork)",
     "1d50:606f": "candleLight (gs_usb)",
+}
+
+# 已知驱动 → 人类可读名
+DRIVER_LABEL = {
+    "gs_usb":  "CANable 2.0 / candleLight",
+    "mttcan":  "Jetson SoC 内置 (不是 CANable!)",
+    "slcan":   "slcan 串口仿真",
 }
 
 
@@ -40,15 +51,15 @@ def detect_usb() -> list[dict]:
     return devices
 
 
-def detect_can0() -> dict | None:
-    """读取 can0 接口详情 (ip -details link show can0)。未找到返回 None。"""
+def detect_if_details(name: str) -> dict:
+    """读取单个 CAN 接口的 state / bitrate。"""
     result = subprocess.run(
-        ["ip", "-details", "link", "show", "can0"],
+        ["ip", "-details", "link", "show", name],
         capture_output=True, text=True,
     )
+    info: dict = {}
     if result.returncode != 0:
-        return None
-    info = {"raw": result.stdout.strip()}
+        return info
     m = re.search(r"state (\w+)", result.stdout)
     if m:
         info["state"] = m.group(1)
@@ -58,10 +69,10 @@ def detect_can0() -> dict | None:
     return info
 
 
-def ping_motor(motor_id: int, master_id: int) -> tuple[bool, str]:
+def ping_motor(channel: str, motor_id: int, master_id: int) -> tuple[bool, str]:
     """对电机发 clear_error 并等反馈。返回 (ok, 说明)。"""
     try:
-        bus = open_bus(channel="can0", bitrate=1_000_000)
+        bus = open_bus(channel=channel, bitrate=1_000_000)
     except Exception as e:
         return False, f"打开 CAN 总线失败: {e}"
     try:
@@ -78,9 +89,11 @@ def ping_motor(motor_id: int, master_id: int) -> tuple[bool, str]:
 
 
 def main():
-    p = argparse.ArgumentParser(description="检测 CANable 2.0 + can0 + 达妙电机")
+    p = argparse.ArgumentParser(description="检测 CANable 2.0 + CAN 接口 + 达妙电机")
     add_id_args(p)
-    p.add_argument("--skip-motor", action="store_true", help="只做 USB + can0 检测")
+    p.add_argument("--interface", "-i", default=None,
+                   help="指定 CAN 接口 (默认自动按驱动选: gs_usb 优先)")
+    p.add_argument("--skip-motor", action="store_true", help="只做 USB + CAN 接口检测")
     args = p.parse_args()
     resolve_ids(p, args)
 
@@ -92,26 +105,38 @@ def main():
         print(f"  {d['header']}")
         print(f"    固件: {d['firmware']}")
 
-    print("\n=== can0 链路 ===")
-    c = detect_can0()
-    if c is None:
-        print("  can0 不存在")
-        print("  → 如已烧 candleLight 固件, 跑 setup.sh 装 systemd unit")
-        print("  → 如仍是 slcan 固件, 跑 fw_update.py 烧 candleLight")
+    print("\n=== CAN 接口列表 ===")
+    ifs = list_can_interfaces()
+    if not ifs:
+        print("  无 CAN netdev")
+        print("  → 没装 gs_usb 模块: 跑 damiao/gs_usb_mod/ 下的 build.sh")
+        print("  → 或固件还是 slcan: 跑 fw_update.py 烧 candleLight")
     else:
-        print(f"  state: {c.get('state', '?')}")
-        if "bitrate" in c:
-            print(f"  bitrate: {c['bitrate']}")
+        for name, drv in ifs:
+            d = detect_if_details(name)
+            label = DRIVER_LABEL.get(drv, drv)
+            state = d.get("state", "?")
+            br = d.get("bitrate")
+            br_str = f", bitrate {br}" if br else ""
+            print(f"  {name}  driver={drv} ({label})  state={state}{br_str}")
 
+    # 选接口
+    chosen = args.interface or find_can_interface()
     if args.skip_motor:
         return
-    if c is None or c.get("state") != "UP":
-        print("\n=== 电机探活 === (跳过, can0 未就绪)")
+    if chosen is None:
+        print("\n=== 电机探活 === (跳过, 无可用 CAN 接口)")
+        return
+    d = detect_if_details(chosen)
+    if d.get("state") != "UP":
+        print(f"\n=== 电机探活 === (跳过, {chosen} 不是 UP 状态)")
+        print(f"  → sudo ip link set {chosen} type can bitrate 1000000 && sudo ip link set {chosen} up")
+        print(f"  → 或跑 sudo bash setup.sh 装 udev 规则让 CANable 插上自动拉起")
         return
 
-    print(f"\n=== 电机探活 (motor_id=0x{args.motor_id:02X}, "
+    print(f"\n=== 电机探活 ({chosen}, motor_id=0x{args.motor_id:02X}, "
           f"master_id=0x{args.master_id:02X}) ===")
-    ok, msg = ping_motor(args.motor_id, args.master_id)
+    ok, msg = ping_motor(chosen, args.motor_id, args.master_id)
     print(f"  {'[OK]' if ok else '[FAIL]'} {msg}")
     if not ok:
         print("  常见原因: motor_id/master_id 不匹配, bitrate 不是 1 Mbps, "

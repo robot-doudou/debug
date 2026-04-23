@@ -39,7 +39,7 @@ def main():
     safety = (SafetyLimits(tau=args.t_max, vel=args.v_max, pos=args.p_max,
                            kp=500.0, kd=5.0) if args.unsafe else SAFE_DEFAULTS)
 
-    bus = open_bus(channel="can0", bitrate=1_000_000)
+    bus = open_bus(bitrate=1_000_000)
     samples = []
     try:
         with DMMotor(bus, motor_id=args.motor_id, master_id=args.master_id,

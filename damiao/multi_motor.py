@@ -186,7 +186,7 @@ def main():
 
     print(f"=== 配置: {len(motors)} 颗电机 ({','.join(args.leg)} × {','.join(args.joint)}) ===")
 
-    bus = open_bus(channel="can0", bitrate=1_000_000)
+    bus = open_bus(bitrate=1_000_000)
     try:
         if args.scan:
             results = scan(bus, motors)

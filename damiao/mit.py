@@ -262,7 +262,7 @@ def main():
     if args.live and not use_live:
         print("[info] --live 请求但无 DISPLAY, 降级为静态输出")
 
-    bus = open_bus(channel="can0", bitrate=1_000_000)
+    bus = open_bus(bitrate=1_000_000)
     try:
         with DMMotor(bus, motor_id=args.motor_id, master_id=args.master_id,
                      p_max=args.p_max, v_max=args.v_max, t_max=args.t_max,

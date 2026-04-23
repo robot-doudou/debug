@@ -1,0 +1,10 @@
+# OOT 模块构建产物 (每个内核版本不同, 不提交)
+*.ko
+*.o
+*.mod
+*.mod.c
+*.mod.o
+modules.order
+Module.symvers
+.*.cmd
+.tmp_versions/

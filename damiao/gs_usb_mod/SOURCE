@@ -1,0 +1,10 @@
+gs_usb.c vendored from:
+  https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/plain/drivers/net/can/usb/gs_usb.c?h=v5.15.185
+
+Git ref:   v5.15.185 (stable/linux.git)
+sha256:    d1ee028fd35e29f1c120577f62d1c3d670731b3b5104f4107278d061a7e5ac06
+Lines:     1082
+
+Rationale: v5.15.185 matches `uname -r` on our JetPack 6 Jetson Orin Nano exactly.
+Do not edit gs_usb.c in place — if upgrading to a newer L4T kernel, re-fetch
+from the matching stable tag, update this file, and rebuild.

@@ -2,8 +2,12 @@ version = 1
 revision = 3
 requires-python = ">=3.10, <3.13"
 resolution-markers = [
-    "python_full_version >= '3.11'",
-    "python_full_version < '3.11'",
+    "python_full_version >= '3.11' and platform_machine != 'aarch64' and sys_platform == 'linux'",
+    "python_full_version < '3.11' and platform_machine != 'aarch64' and sys_platform == 'linux'",
+    "python_full_version >= '3.11' and platform_machine != 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.11' and platform_machine != 'arm64' and sys_platform == 'darwin'",
+    "(python_full_version >= '3.11' and platform_machine == 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11' and platform_machine == 'aarch64' and sys_platform == 'linux') or (python_full_version >= '3.11' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version < '3.11' and platform_machine == 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11' and platform_machine == 'aarch64' and sys_platform == 'linux') or (python_full_version < '3.11' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 
 [[package]]
@@ -11,7 +15,9 @@ name = "numpy"
 version = "2.2.6"
 source = { registry = "https://mirrors.aliyun.com/pypi/simple" }
 resolution-markers = [
-    "python_full_version < '3.11'",
+    "python_full_version < '3.11' and platform_machine != 'aarch64' and sys_platform == 'linux'",
+    "python_full_version < '3.11' and platform_machine != 'arm64' and sys_platform == 'darwin'",
+    "(python_full_version < '3.11' and platform_machine == 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11' and platform_machine == 'aarch64' and sys_platform == 'linux') or (python_full_version < '3.11' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 sdist = { url = "https://mirrors.aliyun.com/pypi/packages/76/21/7d2a95e4bba9dc13d043ee156a356c0a8f0c6309dff6b21b4d71a073b8a8/numpy-2.2.6.tar.gz", hash = "sha256:e29554e2bef54a90aa5cc07da6ce955accb83f21ab5de01a62c8478897b264fd" }
 wheels = [
@@ -56,7 +62,9 @@ name = "numpy"
 version = "2.4.4"
 source = { registry = "https://mirrors.aliyun.com/pypi/simple" }
 resolution-markers = [
-    "python_full_version >= '3.11'",
+    "python_full_version >= '3.11' and platform_machine != 'aarch64' and sys_platform == 'linux'",
+    "python_full_version >= '3.11' and platform_machine != 'arm64' and sys_platform == 'darwin'",
+    "(python_full_version >= '3.11' and platform_machine == 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.11' and platform_machine == 'aarch64' and sys_platform == 'linux') or (python_full_version >= '3.11' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 sdist = { url = "https://mirrors.aliyun.com/pypi/packages/d7/9f/b8cef5bffa569759033adda9481211426f12f53299629b410340795c2514/numpy-2.4.4.tar.gz", hash = "sha256:2d390634c5182175533585cc89f3608a4682ccb173cc9bb940b2881c8d6f8fa0" }
 wheels = [
@@ -117,12 +125,9 @@ source = { registry = "https://mirrors.aliyun.com/pypi/simple" }
 wheels = [
     { url = "https://mirrors.aliyun.com/pypi/packages/23/a2/c1e4f0b6e6b1a30b782136f439313737acc961a84bbea69577a2009e8c44/pyrealsense2-2.57.7.10387-cp310-cp310-manylinux1_x86_64.whl", hash = "sha256:890de972c3532e0876ae851ccd36d9a035e471b9c15eb122b8b583b494c46df0" },
     { url = "https://mirrors.aliyun.com/pypi/packages/2d/a7/915942be1b17e9da26775c7c4e5e3919d3be4048defef4ef8903a909d143/pyrealsense2-2.57.7.10387-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:5c978c2a409dd50e51339a37c758cf2c12984235573401adfc7afb8c4427b055" },
-    { url = "https://mirrors.aliyun.com/pypi/packages/67/87/0a34fc2cd320acaad623cd86ebf666a6e842db8ce37971b214dfa814542a/pyrealsense2-2.57.7.10387-cp310-cp310-win_amd64.whl", hash = "sha256:7d68ad5dc56c94decc1e1386c8b3c12a3f392a5ea3758b22a6d4b08185765ea0" },
     { url = "https://mirrors.aliyun.com/pypi/packages/4f/61/1d4db107c791c89b3b231d2050ff3667b6a72979bd5dfb7a9b2a2fa2dcb2/pyrealsense2-2.57.7.10387-cp311-cp311-manylinux1_x86_64.whl", hash = "sha256:3f95183e07b964c86794e508ec82c82700ae597acbf0751083f7a387a490eb1c" },
-    { url = "https://mirrors.aliyun.com/pypi/packages/15/c8/a7a8eec5a20829d7f05727e238e3423ffe15aeda69bf0c639742a7f3dad0/pyrealsense2-2.57.7.10387-cp311-cp311-win_amd64.whl", hash = "sha256:7f72715ea8bb30c218c5cfc40c69c7b1cc079ac267f472c98166502a193af254" },
     { url = "https://mirrors.aliyun.com/pypi/packages/e5/3e/705c698ef95b83c753992bdaa8f2c212e49a0bfbf6258d52f05644603860/pyrealsense2-2.57.7.10387-cp312-cp312-manylinux1_x86_64.whl", hash = "sha256:d39102141af52a4dba13e7e76d520fdf4538985482ec29200cc9c1b0746aa1ff" },
     { url = "https://mirrors.aliyun.com/pypi/packages/8c/5f/3a3b8e904b58f48f7e10ec397984159cefe814952f903b6d1d924b351339/pyrealsense2-2.57.7.10387-cp312-cp312-manylinux2014_aarch64.whl", hash = "sha256:370ba308e076fd4d43fe913d94ffad44b5ac1e9b976fe6101e4bc8037ea91ed5" },
-    { url = "https://mirrors.aliyun.com/pypi/packages/d8/9f/cc2b8ac49c2e07a66ee9d5a40b0f158f94ed27bd1fe51ccbf3e46397ef49/pyrealsense2-2.57.7.10387-cp312-cp312-win_amd64.whl", hash = "sha256:1302fe604bbdc88acd126ec6b884177b9448cf0ede5d7b8c46131876b28f2cdc" },
 ]
 
 [[package]]
@@ -143,7 +148,7 @@ dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://mirrors.aliyun.com/pypi/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.4", source = { registry = "https://mirrors.aliyun.com/pypi/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "opencv-python" },
-    { name = "pyrealsense2", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "pyrealsense2", marker = "(platform_machine != 'arm64' and sys_platform == 'darwin') or (platform_machine != 'aarch64' and sys_platform == 'linux')" },
     { name = "pyrealsense2-macosx", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'" },
 ]
 
@@ -151,6 +156,7 @@ dependencies = [
 requires-dist = [
     { name = "numpy", specifier = ">=1.26" },
     { name = "opencv-python", specifier = ">=4.9" },
-    { name = "pyrealsense2", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'", specifier = ">=2.54" },
+    { name = "pyrealsense2", marker = "platform_machine != 'arm64' and sys_platform == 'darwin'", specifier = ">=2.57" },
+    { name = "pyrealsense2", marker = "platform_machine != 'aarch64' and sys_platform == 'linux'", specifier = ">=2.57" },
     { name = "pyrealsense2-macosx", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'", specifier = ">=2.56" },
 ]

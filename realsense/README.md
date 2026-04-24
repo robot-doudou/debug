@@ -37,6 +37,34 @@
 
 ### Linux
 
+#### Jetson (aarch64): pyrealsense2 PyPI wheel 两条都不通，必须源码编
+
+Jetson L4T 36.x / JetPack 6.x 底层 Ubuntu 22.04，glibc 2.35。PyPI pyrealsense2 wheel 两个版本都废：
+
+| 版本 | aarch64 wheel Python ABI | 症状 |
+|------|-----------------------|------|
+| 2.56.5 (及以前) | 最高到 cp310 | glibc OK，但 **bundled librealsense 2.56 在 Jetson 上枚举设备时 IMU HID 初始化炸** — 日志 `No HID info provided, IMU is disabled` → `rs2_create_device bad optional access`，`ctx.query_devices()[0]` 直接抛 RuntimeError |
+| 2.57.7 | cp39/310/312 | wheel 打了假的 `manylinux2014` 标，实际要 glibc 2.38，`import` 时报 `GLIBC_2.38' not found` |
+
+根因：stock Jetson 内核没编 `hid-sensor-hub.ko`，D435i 的 IMU 只绑到 `hid-generic`，不挂 IIO 子系统。Intel 官方 apt 装的 `librealsense2:arm64`（Intel realsense 源）**能**在 Jetson 上跑，是因为它编译时开了 `FORCE_RSUSB_BACKEND=ON`，走纯 libusb 后端，绕开 V4L2+HID。但 Intel apt 源**不提供** `python3-pyrealsense2` 包。PyPI 的两版 wheel 都是默认 V4L2+HID 后端编的。
+
+解决：从源码 v2.57.7 自己编 + Python binding，也加 `FORCE_RSUSB_BACKEND=ON`，装进本子项目 venv：
+
+```bash
+# 一次性装好构建依赖（不影响已装的 librealsense2:arm64）
+sudo apt install cmake libusb-1.0-0-dev pybind11-dev libssl-dev
+
+# 一键编译 + 安装 (克隆源码到 third_party/, 编译 ~15 min, 装进 .venv)
+uv sync                                   # 先建好 venv (Python 3.12, 没有 pyrealsense2 deps)
+scripts/build_pyrealsense2.sh             # 克隆 → cmake → make -j6 → 装进 venv → 自检
+```
+
+脚本幂等：重跑只做增量 make；换 Python 版本先跑 `scripts/build_pyrealsense2.sh clean` 再重跑。
+
+pyproject.toml 在 linux+aarch64 **不声明** pyrealsense2 依赖（见注释），避免 `uv sync` 从 PyPI 拉坏 wheel 覆盖掉我们的本地 .so。其它平台（linux x86_64 / macOS arm64）仍走 PyPI。
+
+**意外收获**：libuvc 后端不走 Linux HID，反而让 IMU 通了 —— `detect.py` 能枚举到 Motion Module（gyro/accel），`imu.py` 采样正常。
+
 #### USB 设备权限 (udev)
 
 直接 pip/uv 装的 pyrealsense2 通过 libuvc 访问 USB，需配置 udev 规则（或用 `sudo uv run`）：
@@ -63,13 +91,11 @@ USB 2.0 下很多高帧率/高分辨率组合会失败。
 
 `stream.py` / `pointcloud.py --view` 需要 `DISPLAY` 或 `WAYLAND_DISPLAY`。SSH 无 X11 转发时会自动切到 headless（保存样本帧）。
 
-#### 固件复位绕过 (TODO: 升级固件)
+#### 固件复位绕过 (历史遗留, Jetson 源码编译链上可能不需要)
 
-当前测试设备固件 **5.12.6**（偏旧）。在 Linux kernel 6.x 上，不预先复位直接 `pipeline.start()` + `wait_for_frames()` 会稳定超时 `Frame didn't arrive within 5000`——V4L2 节点和 D4XX 元数据都配置成功，但固件就是不吐帧。
+早期测试设备固件 **5.12.6** 时，在 Linux kernel 6.x 上不预先复位直接 `pipeline.start()` + `wait_for_frames()` 会稳定超时 `Frame didn't arrive within 5000`。当前测试设备已升级到 **5.17.0.10**，加之 Jetson 走源码编 libuvc 后端，复位绕过可能已不需要；但 `device.py::require_device()` 默认 `reset=True` 暂未改，每个脚本启动多花约 3s。等后续跑流/imu 全部验证稳定后再改默认值。
 
-**绕过方式**：`device.py::require_device()` 默认 `reset=True`，每次启动先发 `hardware_reset()` 并等 3s 重新枚举。代价是每个脚本多花约 3s 启动时间。
-
-**根治（待做）**：升级 D435i 固件到 5.17.x（最新稳定版），理论上可去掉此复位绕过。用仓库里的 `fw_update.py`——基于 pyrealsense2 自带 API（`check_firmware_compatibility` / `enter_update_state` / `update_device.update`），不依赖 `rs-fw-update` 或 `librealsense2-utils` apt 包（Ubuntu 24.04 noble 上 Intel 源也没对应包）。
+升级固件用仓库里的 `fw_update.py`——基于 pyrealsense2 自带 API（`check_firmware_compatibility` / `enter_update_state` / `update_device.update`），不依赖 `rs-fw-update` 或 `librealsense2-utils` apt 包（Ubuntu 24.04 noble 上 Intel 源也没对应包）。
 
 ```bash
 # 下载固件 (D435i 推荐 5.17.0.10):
@@ -181,7 +207,8 @@ uv run main.py -b 127.0.0.1 # 仅本机
 
 | 现象 | 可能原因 / 处理 |
 |------|----------------|
-| `pyrealsense2` 导入失败 | 确认在项目目录用 `uv sync`；macOS arm64 依赖 `pyrealsense2-macosx` 自动拉取 |
+| `pyrealsense2` 导入失败 | Jetson: 必须跑 `scripts/build_pyrealsense2.sh` 从源码编；macOS arm64 依赖 `pyrealsense2-macosx` 自动拉取；其它 linux `uv sync` 就行 |
+| `GLIBC_2.38' not found` 或 `bad optional access` | Jetson 用了 PyPI wheel。见 "Jetson (aarch64): pyrealsense2 PyPI wheel 两条都不通" |
 | macOS: `failed to set power state` | 换 USB 3 接口；原生 UVC 抢占问题，建议切 Linux 测试 |
 | `No device connected` | 检查 `lsusb` / `ioreg`；Linux 上缺 udev 规则 |
 | `Couldn't resolve requests` | 分辨率/帧率组合不支持，先跑 `detect.py` 查可用配置 |

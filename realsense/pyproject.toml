@@ -4,9 +4,15 @@ version = "0.1.0"
 description = "Intel RealSense D435i 调试工具"
 requires-python = ">=3.10,<3.13"
 dependencies = [
+    # Linux aarch64 (Jetson) 不走 PyPI wheel:
+    #   - 2.56.x 最新 aarch64 wheel 只到 cp310
+    #   - 2.57.x aarch64 wheel 打 manylinux2014 标但实际要 glibc 2.38 (L4T 36 只有 2.35)
+    #   - 且 bundled librealsense 有 HID/IMU 初始化 bug (bad optional access) 导致无法枚举
+    #   改用源码编 pyrealsense2 链接系统 librealsense2 (FORCE_RSUSB_BACKEND=ON), 见 scripts/build_pyrealsense2.sh
+    "pyrealsense2>=2.57; sys_platform == 'linux' and platform_machine != 'aarch64'",
     # 官方 pyrealsense2 不提供 macOS arm64 wheel, 该平台使用 cansik/pyrealsense2-macosx 社区构建
-    "pyrealsense2>=2.54; sys_platform != 'darwin' or platform_machine != 'arm64'",
     "pyrealsense2-macosx>=2.56; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "pyrealsense2>=2.57; sys_platform == 'darwin' and platform_machine != 'arm64'",
     "numpy>=1.26",
     "opencv-python>=4.9",
 ]
